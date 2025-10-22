@@ -68,9 +68,6 @@ resource postgresqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-
     highAvailability: {
       mode: 'Disabled' // Enable for production
     }
-    network: {
-      publicNetworkAccess: 'Enabled' // For simplicity; use private endpoint in production
-    }
   }
 }
 

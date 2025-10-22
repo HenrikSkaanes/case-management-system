@@ -106,9 +106,6 @@ module postgresql 'modules/postgresql.bicep' = {
   }
 }
 
-  }
-}
-
 // 5. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
   name: 'api-app-deployment'
@@ -129,9 +126,6 @@ module apiApp 'modules/app.bicep' = {
 }
 
 // 6. Static Web App (Frontend on CDN)
-module staticWebApp 'modules/staticwebapp.bicep' = {
-
-// 5. Static Web App (Frontend on CDN)
 module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
