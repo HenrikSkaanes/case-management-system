@@ -87,6 +87,7 @@ module environment 'modules/environment.bicep' = {
     location: location
     logAnalyticsId: logs.outputs.logAnalyticsId
     logAnalyticsCustomerId: logs.outputs.customerId
+    logAnalyticsSharedKey: logs.outputs.sharedKey
     tags: tags
   }
 }

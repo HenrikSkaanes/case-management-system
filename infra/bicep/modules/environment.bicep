@@ -13,13 +13,12 @@ param logAnalyticsId string
 @description('Log Analytics customer ID')
 param logAnalyticsCustomerId string
 
+@description('Log Analytics shared key')
+@secure()
+param logAnalyticsSharedKey string
+
 @description('Tags to apply to resources')
 param tags object = {}
-
-// Get the Log Analytics workspace to read its key
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
-  name: split(logAnalyticsId, '/')[8] // Extract workspace name from resource ID
-}
 
 // Create Container App Environment
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -31,7 +30,7 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
         customerId: logAnalyticsCustomerId
-        sharedKey: logAnalytics.listKeys().primarySharedKey
+        sharedKey: logAnalyticsSharedKey
       }
     }
   }
