@@ -77,9 +77,6 @@ module environment 'modules/environment.bicep' = {
     logAnalyticsCustomerId: logs.outputs.customerId
     tags: tags
   }
-  dependsOn: [
-    logs
-  ]
 }
 
 // 4. Container App (your application)
@@ -92,16 +89,13 @@ module app 'modules/app.bicep' = {
     acrLoginServer: acr.outputs.acrLoginServer
     acrName: acr.outputs.acrName
     imageName: 'case-management:${imageTag}'
+    usePublicImage: true // Use placeholder image on first deploy
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1
     maxReplicas: 3
     tags: tags
   }
-  dependsOn: [
-    environment
-    acr
-  ]
 }
 
 // ============================================

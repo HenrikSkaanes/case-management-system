@@ -16,6 +16,9 @@ param acrLoginServer string
 @description('Container image name with tag (e.g., case-management:latest)')
 param imageName string = 'case-management:latest'
 
+@description('Use public placeholder image for initial deployment')
+param usePublicImage bool = false
+
 @description('Container Registry name')
 param acrName string
 
@@ -53,14 +56,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'http'
         allowInsecure: false // Use HTTPS
       }
-      registries: [
+      registries: usePublicImage ? [] : [
         {
           server: acrLoginServer
           username: containerRegistry.listCredentials().username
           passwordSecretRef: 'acr-password'
         }
       ]
-      secrets: [
+      secrets: usePublicImage ? [] : [
         {
           name: 'acr-password'
           value: containerRegistry.listCredentials().passwords[0].value
@@ -71,7 +74,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'case-management'
-          image: '${acrLoginServer}/${imageName}'
+          image: usePublicImage ? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' : '${acrLoginServer}/${imageName}'
           resources: {
             cpu: json(cpu)
             memory: memory
