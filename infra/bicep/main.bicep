@@ -121,6 +121,14 @@ module communicationServices 'modules/communication-services.bicep' = {
   }
 }
 
+// Reference the ACS resource to get connection string
+resource acsResource 'Microsoft.Communication/communicationServices@2023-04-01' existing = {
+  name: communicationServicesName
+  dependsOn: [
+    communicationServices
+  ]
+}
+
 // 6. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
   name: 'api-app-deployment'
@@ -137,7 +145,7 @@ module apiApp 'modules/app.bicep' = {
     minReplicas: 1
     maxReplicas: 5  // Can scale higher now
     databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
-    acsConnectionString: communicationServices.outputs.connectionString
+    acsConnectionString: acsResource.listKeys().primaryConnectionString
     acsSenderEmail: communicationServices.outputs.senderEmail
     companyName: 'Wrangler Tax Services'
     tags: tags
@@ -175,7 +183,8 @@ output postgresqlDatabaseName string = postgresql.outputs.databaseName
 output databaseConnectionString string = 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
 
 // Azure Communication Services outputs
-output acsConnectionString string = communicationServices.outputs.connectionString
+#disable-next-line outputs-should-not-contain-secrets
+output acsConnectionString string = acsResource.listKeys().primaryConnectionString
 output acsSenderEmail string = communicationServices.outputs.senderEmail
 output acsServiceName string = communicationServices.outputs.communicationServiceName
 

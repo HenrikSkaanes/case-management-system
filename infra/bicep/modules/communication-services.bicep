@@ -73,10 +73,6 @@ output communicationServiceName string = communicationService.name
 output emailServiceId string = emailService.id
 output emailDomainId string = emailDomain.id
 
-// Connection string for backend (contains endpoint and access key)
-#disable-next-line outputs-should-not-contain-secrets
-output connectionString string = communicationService.listKeys().primaryConnectionString
-
 // From address to use in emails
 // The Azure Managed Domain creates a subdomain like: AzureManagedDomain@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
 // We output a placeholder that will be configured after deployment
