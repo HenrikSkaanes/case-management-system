@@ -73,17 +73,20 @@ def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
     - description: Optional
     - category: Required
     - priority: Optional (defaults to 'medium')
+    - customer_name: Required
+    - customer_email: Required (must be valid email)
+    - customer_phone: Optional
+    - And other optional fields for assignment, analytics, etc.
     
     Returns the created ticket with ID and timestamps.
     """
-    # Create new Ticket instance
-    new_ticket = Ticket(
-        title=ticket_data.title,
-        description=ticket_data.description,
-        category=ticket_data.category,
-        priority=ticket_data.priority,
-        status=TicketStatus.NEW  # New tickets always start as "new"
-    )
+    # Create new Ticket instance with all fields from schema
+    ticket_dict = ticket_data.model_dump(exclude_unset=True)
+    
+    # Ensure status is set to NEW for new tickets
+    ticket_dict['status'] = TicketStatus.NEW
+    
+    new_ticket = Ticket(**ticket_dict)
     
     # Add to database
     db.add(new_ticket)
