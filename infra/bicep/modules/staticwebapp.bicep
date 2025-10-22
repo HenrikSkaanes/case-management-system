@@ -55,4 +55,7 @@ resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (apiUrl 
 output staticWebAppId string = staticWebApp.id
 output staticWebAppName string = staticWebApp.name
 output defaultHostname string = staticWebApp.properties.defaultHostname
-output deploymentToken string = listSecrets(staticWebApp.id, '2023-01-01').properties.apiKey
+
+// Use resource property instead of listSecrets function
+#disable-next-line outputs-should-not-contain-secrets
+output deploymentToken string = staticWebApp.listSecrets().properties.apiKey
