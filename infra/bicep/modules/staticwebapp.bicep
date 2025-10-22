@@ -56,6 +56,5 @@ output staticWebAppId string = staticWebApp.id
 output staticWebAppName string = staticWebApp.name
 output defaultHostname string = staticWebApp.properties.defaultHostname
 
-// Use resource property instead of listSecrets function
-#disable-next-line outputs-should-not-contain-secrets
-output deploymentToken string = staticWebApp.listSecrets().properties.apiKey
+// Note: deploymentToken NOT output to avoid "content already consumed" error
+// Retrieve token via Azure CLI: az staticwebapp secrets list --name <name> --resource-group <rg> --query properties.apiKey -o tsv

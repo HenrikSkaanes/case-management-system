@@ -85,9 +85,6 @@ module environment 'modules/environment.bicep' = {
   params: {
     environmentName: environmentName
     location: location
-    logAnalyticsId: logs.outputs.logAnalyticsId
-    logAnalyticsCustomerId: logs.outputs.customerId
-    logAnalyticsWorkspaceName: logs.outputs.logAnalyticsName
     tags: tags
   }
   dependsOn: [
@@ -170,7 +167,7 @@ output acrLoginServer string = acr.outputs.acrLoginServer
 output acrName string = acr.outputs.acrName
 output apiAppName string = apiApp.outputs.appName
 output staticWebAppName string = staticWebApp.outputs.staticWebAppName
-output staticWebAppDeploymentToken string = staticWebApp.outputs.deploymentToken
+// Note: deploymentToken NOT output - retrieve via Azure CLI to avoid "content already consumed" error
 output resourceGroupName string = resourceGroup().name
 
 // PostgreSQL outputs

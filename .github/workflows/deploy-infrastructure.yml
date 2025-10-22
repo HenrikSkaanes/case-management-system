@@ -25,7 +25,7 @@ jobs:
       acr-name: ${{ steps.deploy.outputs.acrName }}
       acr-login-server: ${{ steps.deploy.outputs.acrLoginServer }}
       static-web-app-name: ${{ steps.deploy.outputs.staticWebAppName }}
-      deployment-token: ${{ steps.deploy.outputs.staticWebAppDeploymentToken }}
+      deployment-token: ${{ steps.get_token.outputs.staticWebAppDeploymentToken }}
     
     steps:
       - name: Checkout code
@@ -59,11 +59,32 @@ jobs:
           echo "acrName=$(echo $output | jq -r '.acrName.value')" >> $GITHUB_OUTPUT
           echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
-          echo "staticWebAppDeploymentToken=$(echo $output | jq -r '.staticWebAppDeploymentToken.value')" >> $GITHUB_OUTPUT
           echo "postgresqlServerFqdn=$(echo $output | jq -r '.postgresqlServerFqdn.value')" >> $GITHUB_OUTPUT
           echo "databaseConnectionString=$(echo $output | jq -r '.databaseConnectionString.value')" >> $GITHUB_OUTPUT
+          echo "acsServiceName=$(echo $output | jq -r '.acsServiceName.value')" >> $GITHUB_OUTPUT
           
           echo "✅ Infrastructure deployed successfully!"
+
+      - name: Get Static Web App Deployment Token
+        id: get_token
+        run: |
+          # Retrieve deployment token via Azure CLI to avoid "content already consumed" error
+          token=$(az staticwebapp secrets list \
+            --name ${{ steps.deploy.outputs.staticWebAppName }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.apiKey -o tsv)
+          echo "staticWebAppDeploymentToken=$token" >> $GITHUB_OUTPUT
+          echo "✅ Retrieved Static Web App deployment token"
+
+      - name: Post-Deployment Configuration
+        run: |
+          # Configure Log Analytics and retrieve secrets
+          export RESOURCE_GROUP="${{ env.AZURE_RESOURCE_GROUP }}"
+          export ENVIRONMENT_NAME="casemanagement-env-dev"
+          export LOG_ANALYTICS_NAME="casemanagement-logs-dev"
+          export ACS_SERVICE_NAME="${{ steps.deploy.outputs.acsServiceName }}"
+          
+          ./infra/scripts/configure-post-deployment.sh
 
       - name: Deployment Summary
         run: |
