@@ -71,13 +71,19 @@ jobs:
 
       - name: 🚀 Update Container App
         run: |
+          # Set registry credentials
+          az containerapp registry set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --server ${{ env.ACR_NAME }}.azurecr.io \
+            --username ${{ steps.acr-creds.outputs.username }} \
+            --password ${{ steps.acr-creds.outputs.password }}
+          
+          # Update the container image
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
-            --registry-server ${{ env.ACR_NAME }}.azurecr.io \
-            --registry-username ${{ steps.acr-creds.outputs.username }} \
-            --registry-password ${{ steps.acr-creds.outputs.password }}
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
           
           echo "✅ Container App updated successfully!"
 

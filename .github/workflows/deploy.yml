@@ -113,16 +113,22 @@ jobs:
           echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
           echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
 
-      - name: �🔄 Update Container App
+      - name:  Update Container App with New Image
         run: |
+          # Create or update registry credentials
+          az containerapp registry set \
+            --name ${{ needs.deploy-infrastructure.outputs.app-name }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --server ${{ needs.deploy-infrastructure.outputs.acr-login-server }} \
+            --username ${{ steps.acr-creds.outputs.username }} \
+            --password ${{ steps.acr-creds.outputs.password }}
+          
+          # Update the container image
           az containerapp update \
             --name ${{ needs.deploy-infrastructure.outputs.app-name }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --set-env-vars "REVISION=${{ github.sha }}" \
-            --registry-server ${{ needs.deploy-infrastructure.outputs.acr-login-server }} \
-            --registry-username ${{ steps.acr-creds.outputs.username }} \
-            --registry-password ${{ steps.acr-creds.outputs.password }}
+            --set-env-vars "REVISION=${{ github.sha }}"
           
           echo "✅ Container App updated successfully!"
 
