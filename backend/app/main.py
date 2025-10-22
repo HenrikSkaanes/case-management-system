@@ -1,19 +1,14 @@
 """
-Main FastAPI application entry point.
-
+Backend API for Case Management System.
 This file creates the FastAPI app and sets up:
-- CORS (so frontend can call backend)
+- CORS (so Static Web App frontend can call this API)
 - Database initialization
 - API routes
-- Static file serving (for production)
+- NO static file serving (frontend is on Static Web App)
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pathlib import Path
-import os
 
 from .database import engine, Base
 from .routes import tickets
@@ -23,59 +18,46 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Case Management API",
-    description="API for managing support tickets and cases",
-    version="1.0.0"
+    description="Backend API for managing support tickets and cases",
+    version="2.0.0"
 )
 
-# CORS - Allow frontend (running on different port) to call this API
-# In production, replace "*" with your actual frontend URL
+# CORS - Allow Static Web App frontend to call this API
+# The wildcard for azurestaticapps.net allows any Static Web App subdomain
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: In production, specify exact origins
+    allow_origins=[
+        "http://localhost:5173",              # Vite dev server (local development)
+        "http://localhost:3000",              # Alternative local port
+        "https://*.azurestaticapps.net",      # Azure Static Web App (production)
+        # Add your custom domain here when you set one up
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Health check endpoint - useful for monitoring and CI/CD
+# Root endpoint - shows API is running
+@app.get("/")
+def root():
+    """
+    API root endpoint.
+    """
+    return {
+        "message": "Case Management API",
+        "version": "2.0.0",
+        "status": "running",
+        "docs": "/docs",  # Swagger UI
+        "redoc": "/redoc"  # ReDoc UI
+    }
+
+# Health check endpoint - for monitoring and load balancers
 @app.get("/health")
 def health_check():
     """
-    Health check endpoint for monitoring and load balancers.
+    Health check endpoint for monitoring, Azure health probes, and CI/CD.
     """
     return {"status": "ok"}
 
-
 # Include ticket routes
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
-
-# Serve static frontend files (for production in Docker)
-# Check if static directory exists (it won't in development)
-static_dir = Path("/app/static")  # Absolute path in container
-if not static_dir.exists():
-    # Try relative path for development
-    static_dir = Path(__file__).parent.parent.parent / "static"
-
-if static_dir.exists():
-    # Mount static assets (JS, CSS, images)
-    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
-    
-    # Serve index.html for root and any other routes (SPA routing)
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        """Serve the React SPA for all non-API routes"""
-        # Serve index.html for all routes (React Router handles it)
-        index_file = static_dir / "index.html"
-        if index_file.exists():
-            return FileResponse(str(index_file))
-        
-        return {"error": "Frontend not found"}
-else:
-    # Development mode - show API is running
-    @app.get("/")
-    def read_root():
-        """
-        Simple health check endpoint (development only).
-        Returns a message to confirm the API is running.
-        """
-        return {"message": "Case Management API is running", "status": "healthy"}

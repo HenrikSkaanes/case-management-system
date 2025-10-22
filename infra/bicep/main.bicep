@@ -1,5 +1,5 @@
-// Main Bicep file - Orchestrates all modules
-// Deploys: ACR → Logs → Environment → Container App
+// Main Bicep file - Separated Frontend (Static Web App) + Backend (Container App)
+// Deploys: ACR → Logs → Environment → Backend API → Frontend
 
 targetScope = 'resourceGroup'
 
@@ -7,7 +7,7 @@ targetScope = 'resourceGroup'
 // PARAMETERS
 // ============================================
 
-@description('Base name for all resources (will be prefixed/suffixed)')
+@description('Base name for all resources')
 param baseName string = 'casemanagement'
 
 @description('Environment name (dev, test, prod)')
@@ -18,8 +18,11 @@ param baseName string = 'casemanagement'
 ])
 param environmentName string = 'dev'
 
-@description('Location for all resources')
+@description('Location for Container App resources')
 param location string = resourceGroup().location
+
+@description('Location for Static Web App (limited regions)')
+param staticWebAppLocation string = 'westeurope'
 
 @description('Container image tag to deploy')
 param imageTag string = 'latest'
@@ -32,15 +35,17 @@ var resourceSuffix = '${baseName}-${environmentName}'
 var tags = {
   Environment: environmentName
   Application: 'Case Management System'
+  Architecture: 'Static Web App + Container App API'
   ManagedBy: 'Bicep'
   DeployedFrom: 'GitHub Actions'
 }
 
-// Resource names (following Azure naming conventions)
-var acrName = 'acr${replace(baseName, '-', '')}${environmentName}' // ACR names can't have dashes
+// Resource names
+var acrName = 'acr${replace(baseName, '-', '')}${environmentName}'
 var logAnalyticsName = 'log-${resourceSuffix}'
 var environmentResourceName = 'cae-${resourceSuffix}'
-var appName = 'ca-${resourceSuffix}'
+var apiAppName = 'ca-api-${resourceSuffix}'
+var staticWebAppName = 'stapp-${resourceSuffix}'
 
 // ============================================
 // MODULES
@@ -52,7 +57,7 @@ module acr 'modules/acr.bicep' = {
   params: {
     acrName: acrName
     location: location
-    sku: 'Basic' // Basic is cheapest, sufficient for small projects
+    sku: 'Basic'
     tags: tags
   }
 }
@@ -67,7 +72,7 @@ module logs 'modules/logs.bicep' = {
   }
 }
 
-// 3. Container App Environment (runtime infrastructure)
+// 3. Container App Environment (runtime infrastructure for backend)
 module environment 'modules/environment.bicep' = {
   name: 'environment-deployment'
   params: {
@@ -79,46 +84,68 @@ module environment 'modules/environment.bicep' = {
   }
 }
 
-// 4. Container App (your application)
-module app 'modules/app.bicep' = {
-  name: 'app-deployment'
+// 4. Container App (Backend API only - NO frontend)
+module apiApp 'modules/app.bicep' = {
+  name: 'api-app-deployment'
   params: {
-    appName: appName
+    appName: apiAppName
     location: location
     environmentId: environment.outputs.environmentId
     acrLoginServer: acr.outputs.acrLoginServer
     acrName: acr.outputs.acrName
-    imageName: 'case-management:${imageTag}'
-    usePublicImage: true // Use placeholder image on first deploy
-    cpu: '0.5'
-    memory: '1.0Gi'
+    imageName: 'api:${imageTag}'
+    usePublicImage: true // Use placeholder on first deploy
+    cpu: '0.25'  // Smaller since no frontend
+    memory: '0.5Gi'  // Smaller since no frontend
     minReplicas: 1
-    maxReplicas: 3
+    maxReplicas: 5  // Can scale higher now
+    tags: tags
+  }
+}
+
+// 5. Static Web App (Frontend on CDN)
+module staticWebApp 'modules/staticwebapp.bicep' = {
+  name: 'staticwebapp-deployment'
+  params: {
+    staticWebAppName: staticWebAppName
+    location: staticWebAppLocation
+    sku: 'Free'  // Free tier is perfect for this!
+    apiUrl: 'https://${apiApp.outputs.fqdn}/api'  // Point frontend to backend API
     tags: tags
   }
 }
 
 // ============================================
-// OUTPUTS (displayed after deployment)
+// OUTPUTS
 // ============================================
 
-output applicationUrl string = app.outputs.appUrl
+output frontendUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
+output apiUrl string = 'https://${apiApp.outputs.fqdn}'
 output acrLoginServer string = acr.outputs.acrLoginServer
 output acrName string = acr.outputs.acrName
-output containerAppName string = app.outputs.appName
+output apiAppName string = apiApp.outputs.appName
+output staticWebAppName string = staticWebApp.outputs.staticWebAppName
+output staticWebAppDeploymentToken string = staticWebApp.outputs.deploymentToken
 output resourceGroupName string = resourceGroup().name
 
-// Display a success message with the URL
+// Deployment summary message
 output deploymentMessage string = '''
 🎉 Deployment Complete!
 
-Your Case Management System is now live at:
-${app.outputs.appUrl}
+FRONTEND (Static Web App - on Global CDN):
+🌐 URL: https://${staticWebApp.outputs.defaultHostname}
+📦 Deploy via GitHub Actions with deployment token
+
+BACKEND (Container App API):
+🔗 API URL: https://${apiApp.outputs.fqdn}
+📊 API Docs: https://${apiApp.outputs.fqdn}/docs
+🏥 Health: https://${apiApp.outputs.fqdn}/health
 
 Container Registry: ${acr.outputs.acrLoginServer}
-Container App: ${app.outputs.appName}
 
-To push a new Docker image:
-1. docker tag case-management:latest ${acr.outputs.acrLoginServer}/case-management:latest
-2. docker push ${acr.outputs.acrLoginServer}/case-management:latest
+To deploy backend:
+1. docker build -t ${acr.outputs.acrLoginServer}/api:latest backend/
+2. docker push ${acr.outputs.acrLoginServer}/api:latest
+
+Frontend deploys automatically via GitHub Actions!
 '''

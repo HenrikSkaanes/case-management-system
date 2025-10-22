@@ -1,22 +1,23 @@
 /**
- * API service for communicating with the backend.
+ * API service for communicating with the backend Container App.
  * 
- * All API calls to the FastAPI backend go through these functions.
- * Handles errors and provides consistent interface.
+ * The API URL is configured via environment variable (VITE_API_URL).
+ * In Static Web App, this will be set during deployment.
  */
 
-// Use relative URL in production (same server), localhost in development
-const API_BASE_URL = import.meta.env.PROD 
-  ? '/api'  // Production: relative URL (same container)
-  : 'http://localhost:8000/api';  // Development: local backend
+// Get API URL from environment variable
+// For Static Web App, this will be: https://ca-api-xxx.norwayeast.azurecontainerapps.io/api
+// For local dev, this falls back to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+console.log('🌐 API Base URL:', API_BASE_URL);
 
 /**
- * Fetch all tickets with optional filters
+ * Fetch all tickets
  */
-export const fetchTickets = async (filters = {}) => {
+export const fetchTickets = async () => {
   try {
-    const params = new URLSearchParams(filters);
-    const response = await fetch(`${API_BASE_URL}/tickets/?${params}`);
+    const response = await fetch(`${API_BASE_URL}/tickets/`);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -24,7 +25,7 @@ export const fetchTickets = async (filters = {}) => {
     
     return await response.json();
   } catch (error) {
-    console.error('Error fetching tickets:', error);
+    console.error('❌ Error fetching tickets:', error);
     throw error;
   }
 };
@@ -48,7 +49,7 @@ export const createTicket = async (ticketData) => {
     
     return await response.json();
   } catch (error) {
-    console.error('Error creating ticket:', error);
+    console.error('❌ Error creating ticket:', error);
     throw error;
   }
 };
@@ -72,7 +73,7 @@ export const updateTicket = async (ticketId, updates) => {
     
     return await response.json();
   } catch (error) {
-    console.error('Error updating ticket:', error);
+    console.error('❌ Error updating ticket:', error);
     throw error;
   }
 };
@@ -92,7 +93,7 @@ export const deleteTicket = async (ticketId) => {
     
     return true;
   } catch (error) {
-    console.error('Error deleting ticket:', error);
+    console.error('❌ Error deleting ticket:', error);
     throw error;
   }
 };

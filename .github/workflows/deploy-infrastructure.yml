@@ -1,0 +1,84 @@
+name: Deploy Infrastructure
+
+# Run this workflow manually when infrastructure needs to be created/updated
+# Or automatically when Bicep files change
+
+on:
+  workflow_dispatch: # Manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/bicep/**'
+
+env:
+  AZURE_RESOURCE_GROUP: rg-case-management-dev
+  AZURE_LOCATION: norwayeast
+
+jobs:
+  deploy-infrastructure:
+    name: 🏗️ Deploy Azure Infrastructure
+    runs-on: ubuntu-latest
+    outputs:
+      api-url: ${{ steps.deploy.outputs.apiUrl }}
+      api-app-name: ${{ steps.deploy.outputs.apiAppName }}
+      acr-name: ${{ steps.deploy.outputs.acrName }}
+      acr-login-server: ${{ steps.deploy.outputs.acrLoginServer }}
+      static-web-app-name: ${{ steps.deploy.outputs.staticWebAppName }}
+      deployment-token: ${{ steps.deploy.outputs.staticWebAppDeploymentToken }}
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏗️ Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }}
+
+      - name: 🚀 Deploy Bicep Template
+        id: deploy
+        run: |
+          output=$(az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/bicep/main.bicep \
+            --parameters infra/bicep/main.parameters.dev.json \
+            --query 'properties.outputs' \
+            -o json)
+          
+          # Extract outputs
+          echo "apiUrl=$(echo $output | jq -r '.apiUrl.value')" >> $GITHUB_OUTPUT
+          echo "apiAppName=$(echo $output | jq -r '.apiAppName.value')" >> $GITHUB_OUTPUT
+          echo "acrName=$(echo $output | jq -r '.acrName.value')" >> $GITHUB_OUTPUT
+          echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
+          echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
+          echo "staticWebAppDeploymentToken=$(echo $output | jq -r '.staticWebAppDeploymentToken.value')" >> $GITHUB_OUTPUT
+          
+          echo "✅ Infrastructure deployed successfully!"
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "## 🏗️ Infrastructure Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources Created:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 **Static Web App:** \`${{ steps.deploy.outputs.staticWebAppName }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔗 **API Container App:** \`${{ steps.deploy.outputs.apiAppName }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Container Registry:** \`${{ steps.deploy.outputs.acrLoginServer }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Add GitHub Secret:** \`STATIC_WEB_APP_DEPLOYMENT_TOKEN\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Copy deployment token from output above" >> $GITHUB_STEP_SUMMARY
+          echo "3. Go to Settings → Secrets → Actions → New secret" >> $GITHUB_STEP_SUMMARY
+          echo "4. Deploy backend: Push changes to \`backend/\`" >> $GITHUB_STEP_SUMMARY
+          echo "5. Deploy frontend: Push changes to \`frontend/\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: ⚠️ Important: Save Deployment Token
+        run: |
+          echo "::warning::Save this deployment token to GitHub Secrets as STATIC_WEB_APP_DEPLOYMENT_TOKEN"
+          echo "Token: ${{ steps.deploy.outputs.deployment-token }}"
