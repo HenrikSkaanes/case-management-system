@@ -74,7 +74,7 @@ jobs:
           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "1. **Add GitHub Secret:** \`STATIC_WEB_APP_DEPLOYMENT_TOKEN\`" >> $GITHUB_STEP_SUMMARY
           echo "2. Copy deployment token from output above" >> $GITHUB_STEP_SUMMARY
-          echo "3. Go to Settings → Secrets → Actions → New secret" >> $GITHUB_STEP_SUMMARY
+          echo "3. Go to Settings > Secrets > Actions > New secret" >> $GITHUB_STEP_SUMMARY
           echo "4. Deploy backend: Push changes to \`backend/\`" >> $GITHUB_STEP_SUMMARY
           echo "5. Deploy frontend: Push changes to \`frontend/\`" >> $GITHUB_STEP_SUMMARY
 
