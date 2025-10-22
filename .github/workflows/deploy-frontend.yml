@@ -15,37 +15,54 @@ env:
 
 jobs:
   deploy-frontend:
-    name: 🌐 Build & Deploy Frontend
+    name: Build & Deploy Frontend
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Deploy to Static Web App
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ env.API_URL }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.STATIC_WEB_APP_DEPLOYMENT_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "frontend"
-          output_location: "dist"
+          app_location: "frontend/dist"
+          skip_app_build: true
           skip_api_build: true
-        env:
-          VITE_API_URL: ${{ env.API_URL }}
 
-      - name: 🎉 Deployment Summary
+      - name: Deployment Summary
         run: |
-          echo "## 🌐 Frontend Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "## Frontend Deployed!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Your frontend has been deployed to Azure Static Web Apps!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🌐 **URL:** https://stapp-casemanagement-dev.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **API Endpoint:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://stapp-casemanagement-dev.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoint:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📅 **Deployed:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Features:" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Served from global CDN" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔒 HTTPS enabled" >> $GITHUB_STEP_SUMMARY
-          echo "- 🌍 Fast worldwide access" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
