@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import KanbanColumn from './KanbanColumn'
 import TicketModal from './TicketModal'
+import PowerBIEmbed from './PowerBIEmbed'
 import { fetchTickets, createTicket, updateTicket, deleteTicket } from '../services/api'
 import './Dashboard.css'
 
@@ -303,146 +304,93 @@ function Dashboard() {
         </main>
       ) : (
         <main className="metrics-view">
-          <div className="metrics-grid">
-            
-            {/* Priority Distribution */}
-            <div className="metric-card">
-              <h3>📊 Cases by Priority</h3>
-              <div className="priority-chart">
-                <div className="priority-bar">
-                  <div className="priority-label">
-                    <span className="priority-icon critical">🔴</span>
-                    <span>Critical</span>
-                  </div>
-                  <div className="bar-container">
-                    <div 
-                      className="bar critical" 
-                      style={{width: `${tickets.length > 0 ? (priorityCounts.critical / tickets.length) * 100 : 0}%`}}
-                    ></div>
-                    <span className="bar-value">{priorityCounts.critical}</span>
-                  </div>
+          <div className="powerbi-section">
+            <div className="section-intro">
+              <h2>📊 Analytics & Insights</h2>
+              <p>Click on any card below to load and view the corresponding Power BI report. Configure your Power BI reports in the component to display live data.</p>
+            </div>
+
+            <div className="powerbi-grid">
+              <PowerBIEmbed
+                title="Case Volume Analysis"
+                description="Track case volumes over time, identify trends, and analyze peak periods"
+                icon="📈"
+                reportUrl="" // Add your Power BI report URL here
+              />
+
+              <PowerBIEmbed
+                title="Priority Distribution"
+                description="View distribution of cases by priority level and monitor critical cases"
+                icon="🎯"
+                reportUrl="" // Add your Power BI report URL here
+              />
+
+              <PowerBIEmbed
+                title="Resolution Time Metrics"
+                description="Analyze average resolution times, SLA performance, and response efficiency"
+                icon="⏱️"
+                reportUrl="" // Add your Power BI report URL here
+              />
+
+              <PowerBIEmbed
+                title="Customer Satisfaction"
+                description="Monitor satisfaction ratings, feedback trends, and service quality metrics"
+                icon="⭐"
+                reportUrl="" // Add your Power BI report URL here
+              />
+
+              <PowerBIEmbed
+                title="Department Performance"
+                description="Compare performance across departments and identify areas for improvement"
+                icon="🏢"
+                reportUrl="" // Add your Power BI report URL here
+              />
+
+              <PowerBIEmbed
+                title="Category Breakdown"
+                description="Analyze cases by category to understand common issues and allocate resources"
+                icon="📁"
+                reportUrl="" // Add your Power BI report URL here
+              />
+            </div>
+
+            <div className="quick-stats-banner">
+              <div className="quick-stat">
+                <div className="stat-icon">📊</div>
+                <div className="stat-content">
+                  <div className="stat-value">{tickets.length}</div>
+                  <div className="stat-label">Total Cases</div>
                 </div>
-                <div className="priority-bar">
-                  <div className="priority-label">
-                    <span className="priority-icon high">🟠</span>
-                    <span>High</span>
-                  </div>
-                  <div className="bar-container">
-                    <div 
-                      className="bar high" 
-                      style={{width: `${tickets.length > 0 ? (priorityCounts.high / tickets.length) * 100 : 0}%`}}
-                    ></div>
-                    <span className="bar-value">{priorityCounts.high}</span>
-                  </div>
+              </div>
+              <div className="quick-stat">
+                <div className="stat-icon">🆕</div>
+                <div className="stat-content">
+                  <div className="stat-value">{ticketsByStatus.new.length}</div>
+                  <div className="stat-label">New Cases</div>
                 </div>
-                <div className="priority-bar">
-                  <div className="priority-label">
-                    <span className="priority-icon medium">🟡</span>
-                    <span>Medium</span>
-                  </div>
-                  <div className="bar-container">
-                    <div 
-                      className="bar medium" 
-                      style={{width: `${tickets.length > 0 ? (priorityCounts.medium / tickets.length) * 100 : 0}%`}}
-                    ></div>
-                    <span className="bar-value">{priorityCounts.medium}</span>
-                  </div>
+              </div>
+              <div className="quick-stat">
+                <div className="stat-icon">⚙️</div>
+                <div className="stat-content">
+                  <div className="stat-value">{ticketsByStatus.in_progress.length}</div>
+                  <div className="stat-label">In Progress</div>
                 </div>
-                <div className="priority-bar">
-                  <div className="priority-label">
-                    <span className="priority-icon low">🟢</span>
-                    <span>Low</span>
-                  </div>
-                  <div className="bar-container">
-                    <div 
-                      className="bar low" 
-                      style={{width: `${tickets.length > 0 ? (priorityCounts.low / tickets.length) * 100 : 0}%`}}
-                    ></div>
-                    <span className="bar-value">{priorityCounts.low}</span>
-                  </div>
+              </div>
+              <div className="quick-stat">
+                <div className="stat-icon">✅</div>
+                <div className="stat-content">
+                  <div className="stat-value">{ticketsByStatus.resolved.length}</div>
+                  <div className="stat-label">Resolved</div>
+                </div>
+              </div>
+              <div className="quick-stat">
+                <div className="stat-icon">📈</div>
+                <div className="stat-content">
+                  <div className="stat-value">{tickets.length > 0 ? Math.round((ticketsByStatus.resolved.length / tickets.length) * 100) : 0}%</div>
+                  <div className="stat-label">Resolution Rate</div>
                 </div>
               </div>
             </div>
-
-            {/* Cases Trend (Last 7 Days) */}
-            <div className="metric-card">
-              <h3>📈 New Cases (Last 7 Days)</h3>
-              <div className="line-chart">
-                {last7Days.map((day, index) => (
-                  <div key={day} className="chart-bar-wrapper">
-                    <div className="chart-bar-container">
-                      <div 
-                        className="chart-bar"
-                        style={{
-                          height: `${Math.max(...ticketsPerDay) > 0 ? (ticketsPerDay[index] / Math.max(...ticketsPerDay)) * 100 : 0}%`
-                        }}
-                      >
-                        <span className="bar-label">{ticketsPerDay[index]}</span>
-                      </div>
-                    </div>
-                    <div className="chart-x-label">
-                      {new Date(day).toLocaleDateString('en-US', {weekday: 'short'})}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Key Metrics */}
-            <div className="metric-card">
-              <h3>⚡ Key Performance Indicators</h3>
-              <div className="kpi-list">
-                <div className="kpi-item">
-                  <div className="kpi-label">Average Resolution Time</div>
-                  <div className="kpi-value">
-                    {avgResolutionTime > 0 ? `${Math.floor(avgResolutionTime / 60)}h ${avgResolutionTime % 60}m` : 'N/A'}
-                  </div>
-                </div>
-                <div className="kpi-item">
-                  <div className="kpi-label">Open Cases</div>
-                  <div className="kpi-value">{ticketsByStatus.new.length + ticketsByStatus.in_progress.length}</div>
-                </div>
-                <div className="kpi-item">
-                  <div className="kpi-label">Resolution Rate</div>
-                  <div className="kpi-value">
-                    {tickets.length > 0 ? Math.round((ticketsByStatus.resolved.length / tickets.length) * 100) : 0}%
-                  </div>
-                </div>
-                <div className="kpi-item">
-                  <div className="kpi-label">Total Cases</div>
-                  <div className="kpi-value">{tickets.length}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Category Breakdown */}
-            <div className="metric-card">
-              <h3>📁 Cases by Category</h3>
-              <div className="category-list">
-                {categories.map(category => {
-                  const count = tickets.filter(t => t.category === category).length
-                  const percentage = tickets.length > 0 ? (count / tickets.length) * 100 : 0
-                  return (
-                    <div key={category} className="category-item">
-                      <div className="category-header">
-                        <span className="category-name">{category}</span>
-                        <span className="category-count">{count}</span>
-                      </div>
-                      <div className="category-bar-bg">
-                        <div 
-                          className="category-bar-fill" 
-                          style={{width: `${percentage}%`}}
-                        ></div>
-                      </div>
-                    </div>
-                  )
-                })}
-                {categories.length === 0 && (
-                  <p className="no-data">No categories yet</p>
-                )}
-              </div>
-            </div>
-
           </div>
         </main>
       )}
