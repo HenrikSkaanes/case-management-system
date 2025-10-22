@@ -1,0 +1,102 @@
+name: Deploy App Only (No Infrastructure)
+
+# This workflow ONLY builds and deploys the application
+# Use this for code changes that don't require infrastructure updates
+
+on:
+  workflow_dispatch: # Manual trigger only
+    inputs:
+      tag:
+        description: 'Image tag (default: git SHA)'
+        required: false
+        default: 'auto'
+
+env:
+  AZURE_RESOURCE_GROUP: rg-case-management-dev
+  ACR_NAME: acrcasemanagementdev
+  CONTAINER_APP_NAME: ca-casemanagement-dev
+  IMAGE_NAME: case-management
+
+jobs:
+  build-and-deploy:
+    name: 🐳 Build & Deploy App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏷️ Determine Image Tag
+        id: tag
+        run: |
+          if [ "${{ github.event.inputs.tag }}" == "auto" ] || [ -z "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.sha }}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
+
+      - name: 🔑 Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: 🐳 Build Docker Image
+        run: |
+          docker build \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest \
+            .
+          echo "✅ Image built successfully!"
+
+      - name: 📤 Push Docker Image
+        run: |
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          echo "✅ Image pushed to ACR!"
+
+      - name: 🔑 Get ACR Credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" -o tsv)
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Update Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
+            --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+            --registry-username ${{ steps.acr-creds.outputs.username }} \
+            --registry-password ${{ steps.acr-creds.outputs.password }}
+          
+          echo "✅ Container App updated successfully!"
+
+      - name: 📊 Get Application URL
+        id: get-url
+        run: |
+          url=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query 'properties.configuration.ingress.fqdn' \
+            -o tsv)
+          echo "url=https://$url" >> $GITHUB_OUTPUT
+
+      - name: 🎉 Deployment Summary
+        run: |
+          echo "## 🚀 App Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **Application URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Image:** \`${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📅 **Deployed:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

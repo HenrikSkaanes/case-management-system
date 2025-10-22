@@ -99,12 +99,30 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🔄 Update Container App
+      - name: � Get ACR Credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show \
+            --name ${{ needs.deploy-infrastructure.outputs.acr-name }} \
+            --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show \
+            --name ${{ needs.deploy-infrastructure.outputs.acr-name }} \
+            --query "passwords[0].value" -o tsv)
+          
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: �🔄 Update Container App
         run: |
           az containerapp update \
             --name ${{ needs.deploy-infrastructure.outputs.app-name }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            --image ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars "REVISION=${{ github.sha }}" \
+            --registry-server ${{ needs.deploy-infrastructure.outputs.acr-login-server }} \
+            --registry-username ${{ steps.acr-creds.outputs.username }} \
+            --registry-password ${{ steps.acr-creds.outputs.password }}
           
           echo "✅ Container App updated successfully!"
 
