@@ -11,7 +11,7 @@ on:
   workflow_dispatch: # Manual trigger
 
 env:
-  API_URL: https://ca-api-casemanagement-dev.norwayeast.azurecontainerapps.io/api
+  API_URL: https://ca-api-casemanagement-dev.agreeablesmoke-8b3eacca.norwayeast.azurecontainerapps.io/api
 
 jobs:
   deploy-frontend:
