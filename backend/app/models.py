@@ -2,9 +2,11 @@
 Database models - Python classes that represent database tables.
 
 Enhanced Ticket model with comprehensive fields for analytics and case management.
+Includes TicketResponse model for tracking email communications.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum
@@ -28,6 +30,14 @@ class TicketPriority(str, enum.Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
+
+class EmailStatus(str, enum.Enum):
+    """Email delivery status"""
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    DELIVERED = "delivered"  # Confirmed delivery (if tracking enabled)
 
 
 class Ticket(Base):
@@ -83,6 +93,48 @@ class Ticket(Base):
     escalated = Column(Boolean, default=False)  # Escalated to supervisor
     notes = Column(Text, nullable=True)  # Internal notes
 
+    # Relationship to responses
+    responses = relationship("TicketResponse", back_populates="ticket", cascade="all, delete-orphan")
+
     def __repr__(self):
         """String representation for debugging"""
         return f"<Ticket {self.ticket_number or self.id}: {self.title} ({self.status})>"
+
+
+class TicketResponse(Base):
+    """
+    Track all email responses sent to customers for tickets.
+    
+    Provides audit trail and communication history.
+    """
+    __tablename__ = "ticket_responses"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Foreign Key to Ticket
+    ticket_id = Column(Integer, ForeignKey('tickets.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # Email Details
+    subject = Column(String, nullable=False)
+    response_text = Column(Text, nullable=False)
+    sent_to = Column(String, nullable=False, index=True)  # Customer email
+    sent_by = Column(String, nullable=True)  # Employee name/ID who sent it
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)  # When email was actually sent
+    
+    # Status & Error Tracking
+    email_status = Column(String, default=EmailStatus.PENDING, nullable=False, index=True)
+    error_message = Column(Text, nullable=True)  # Store error if sending failed
+    
+    # Azure Communication Services metadata
+    message_id = Column(String, nullable=True)  # ACS message ID for tracking
+    
+    # Relationship to ticket
+    ticket = relationship("Ticket", back_populates="responses")
+
+    def __repr__(self):
+        """String representation for debugging"""
+        return f"<TicketResponse {self.id}: Ticket #{self.ticket_id} to {self.sent_to} ({self.email_status})>"

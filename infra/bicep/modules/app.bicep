@@ -37,6 +37,20 @@ param maxReplicas int = 3
 @description('Tags to apply to resources')
 param tags object = {}
 
+@description('Database connection string (secure)')
+@secure()
+param databaseConnectionString string = ''
+
+@description('Azure Communication Services connection string (secure)')
+@secure()
+param acsConnectionString string = ''
+
+@description('ACS sender email address')
+param acsSenderEmail string = ''
+
+@description('Company name for email signatures')
+param companyName string = 'Wrangler Tax Services'
+
 // Get existing Container Registry to read credentials
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: acrName
@@ -68,6 +82,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'acr-password'
           value: containerRegistry.listCredentials().passwords[0].value
         }
+        {
+          name: 'database-url'
+          value: databaseConnectionString
+        }
+        {
+          name: 'acs-connection-string'
+          value: acsConnectionString
+        }
       ]
     }
     template: {
@@ -79,6 +101,24 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
+          env: [
+            {
+              name: 'DATABASE_URL'
+              secretRef: 'database-url'
+            }
+            {
+              name: 'ACS_CONNECTION_STRING'
+              secretRef: 'acs-connection-string'
+            }
+            {
+              name: 'ACS_SENDER_EMAIL'
+              value: acsSenderEmail
+            }
+            {
+              name: 'COMPANY_NAME'
+              value: companyName
+            }
+          ]
         }
       ]
       scale: {

@@ -107,3 +107,31 @@ class TicketResponse(TicketBase):
     class Config:
         """Pydantic configuration"""
         from_attributes = True  # Allows reading from SQLAlchemy models
+
+
+class EmailResponseCreate(BaseModel):
+    """Schema for creating an email response to a customer"""
+    response: str = Field(..., min_length=1, description="Response message to send to customer")
+    customer_email: str = Field(..., description="Customer's email address")
+    customer_name: str = Field(..., description="Customer's name")
+    ticket_title: str = Field(..., description="Title of the ticket")
+    sent_by: Optional[str] = Field(None, description="Name of employee sending response")
+
+
+class EmailResponseResponse(BaseModel):
+    """Response schema after sending email"""
+    id: int
+    ticket_id: int
+    subject: str
+    response_text: str
+    sent_to: str
+    sent_by: Optional[str]
+    created_at: datetime
+    sent_at: Optional[datetime]
+    email_status: str
+    error_message: Optional[str]
+    message_id: Optional[str]
+    
+    class Config:
+        """Pydantic configuration"""
+        from_attributes = True

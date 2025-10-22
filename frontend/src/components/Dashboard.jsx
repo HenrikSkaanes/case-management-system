@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import KanbanColumn from './KanbanColumn'
 import TicketModal from './TicketModal'
 import PowerBIEmbed from './PowerBIEmbed'
-import { fetchTickets, createTicket, updateTicket, deleteTicket } from '../services/api'
+import { fetchTickets, createTicket, updateTicket, deleteTicket, sendResponse } from '../services/api'
 import './Dashboard.css'
 
 /**
@@ -91,20 +91,20 @@ function Dashboard() {
   }
 
   const handleRespond = async (ticketId, responseData) => {
-    // For now, we'll just log it. In a real app, you'd call an API endpoint
-    // that sends an email to the customer
-    console.log('Sending response:', responseData);
-    
-    // TODO: Implement backend endpoint to send email
-    // await sendEmailResponse(ticketId, responseData);
-    
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Email sent to ${responseData.customer_email}`);
-        resolve();
-      }, 1000);
-    });
+    try {
+      // Call the backend API to send email via Azure Communication Services
+      const response = await sendResponse(ticketId, responseData);
+      
+      console.log('✅ Email sent successfully:', response);
+      
+      // Reload tickets to get updated first_response_at timestamp
+      await loadTickets();
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to send email:', error);
+      throw error; // Re-throw so TicketCard can show error message
+    }
   }
 
   const filteredTickets = tickets.filter(ticket => {

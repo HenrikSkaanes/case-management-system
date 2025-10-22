@@ -51,6 +51,8 @@ var environmentResourceName = 'cae-${resourceSuffix}'
 var apiAppName = 'ca-api-${resourceSuffix}'
 var staticWebAppName = 'stapp-${resourceSuffix}'
 var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName}'
+var communicationServicesName = 'acs-${resourceSuffix}'
+var emailServiceName = 'email-${resourceSuffix}'
 
 // ============================================
 // MODULES
@@ -106,7 +108,20 @@ module postgresql 'modules/postgresql.bicep' = {
   }
 }
 
-// 5. Container App (Backend API only - NO frontend)
+// 5. Azure Communication Services (email capabilities)
+module communicationServices 'modules/communication-services.bicep' = {
+  name: 'communication-services-deployment'
+  params: {
+    communicationServicesName: communicationServicesName
+    emailServiceName: emailServiceName
+    location: 'global'
+    emailServiceLocation: 'westeurope'  // Closest to Norway
+    domainName: 'AzureManagedDomain'  // Free managed domain
+    tags: tags
+  }
+}
+
+// 6. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
   name: 'api-app-deployment'
   params: {
@@ -121,11 +136,15 @@ module apiApp 'modules/app.bicep' = {
     memory: '0.5Gi'  // Smaller since no frontend
     minReplicas: 1
     maxReplicas: 5  // Can scale higher now
+    databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
+    acsConnectionString: communicationServices.outputs.connectionString
+    acsSenderEmail: communicationServices.outputs.senderEmail
+    companyName: 'Wrangler Tax Services'
     tags: tags
   }
 }
 
-// 6. Static Web App (Frontend on CDN)
+// 7. Static Web App (Frontend on CDN)
 module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
@@ -155,6 +174,11 @@ output postgresqlServerFqdn string = postgresql.outputs.serverFqdn
 output postgresqlDatabaseName string = postgresql.outputs.databaseName
 output databaseConnectionString string = 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
 
+// Azure Communication Services outputs
+output acsConnectionString string = communicationServices.outputs.connectionString
+output acsSenderEmail string = communicationServices.outputs.senderEmail
+output acsServiceName string = communicationServices.outputs.communicationServiceName
+
 // Deployment summary message
 output deploymentMessage string = '''
 🎉 Deployment Complete!
@@ -172,6 +196,11 @@ DATABASE (PostgreSQL Flexible Server):
 🗄️  Server: ${postgresql.outputs.serverFqdn}
 📦 Database: ${postgresql.outputs.databaseName}
 🔐 Connection: Use DATABASE_URL secret in backend
+
+EMAIL SERVICES (Azure Communication Services):
+📧 Sender Email: ${communicationServices.outputs.senderEmail}
+🔗 Service: ${communicationServices.outputs.communicationServiceName}
+💵 Cost: ~$0.00025 per email sent
 
 Container Registry: ${acr.outputs.acrLoginServer}
 

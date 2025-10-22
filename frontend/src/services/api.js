@@ -97,3 +97,46 @@ export const deleteTicket = async (ticketId) => {
     throw error;
   }
 };
+
+/**
+ * Send email response to customer
+ */
+export const sendResponse = async (ticketId, responseData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/respond`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(responseData),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error sending response:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all responses for a ticket
+ */
+export const getTicketResponses = async (ticketId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/responses`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error fetching ticket responses:', error);
+    throw error;
+  }
+};

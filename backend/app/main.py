@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import engine, Base
-from .routes import tickets
+from .routes import tickets, email
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -60,3 +60,6 @@ def health_check():
 
 # Include ticket routes
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
+
+# Include email routes
+app.include_router(email.router, prefix="/api", tags=["email"])
