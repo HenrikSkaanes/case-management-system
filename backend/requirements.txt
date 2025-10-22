@@ -9,6 +9,9 @@ uvicorn[standard]==0.24.0
 # SQLAlchemy - Database ORM (Object-Relational Mapping)
 sqlalchemy==2.0.23
 
+# PostgreSQL driver
+psycopg2-binary==2.9.9
+
 # Pydantic Settings - Environment variable management
 pydantic-settings==2.1.0
 

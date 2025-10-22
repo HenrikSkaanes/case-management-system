@@ -1,25 +1,33 @@
 """
 Database configuration and setup.
 
-This file sets up SQLAlchemy to work with SQLite.
+This file sets up SQLAlchemy to work with PostgreSQL.
 SQLAlchemy is an ORM (Object-Relational Mapper) - it lets us work with 
 database tables as if they were Python objects.
 """
 
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLite database URL
-# The database file will be created in the backend directory
-SQLALCHEMY_DATABASE_URL = "sqlite:///./tickets.db"
+# Get database URL from environment variable, fallback to SQLite for local dev
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./tickets.db"  # Fallback for local development
+)
 
 # Create database engine
-# check_same_thread=False is needed for SQLite to work with FastAPI
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, 
-    connect_args={"check_same_thread": False}
-)
+# For SQLite, we need check_same_thread=False
+# For PostgreSQL, we don't need any special connect_args
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    # PostgreSQL doesn't need special connect_args
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # SessionLocal: each instance is a database session
 # We'll use this to interact with the database
