@@ -19,8 +19,13 @@ param imageName string = 'case-management:latest'
 @description('Use public placeholder image for initial deployment')
 param usePublicImage bool = false
 
-@description('Container Registry name')
-param acrName string
+@description('Container Registry username (optional)')
+@secure()
+param acrUsername string = ''
+
+@description('Container Registry password (optional)')
+@secure()
+param acrPassword string = ''
 
 @description('CPU cores (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)')
 param cpu string = '0.5'
@@ -51,10 +56,56 @@ param acsSenderEmail string = ''
 @description('Company name for email signatures')
 param companyName string = 'Wrangler Tax Services'
 
-// Get existing Container Registry to read credentials
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
-  name: acrName
-}
+// Determine whether to configure ACR credentials
+var useRegistryCredentials = !usePublicImage && acrUsername != '' && acrPassword != ''
+
+// Build secrets collection without using list* functions to avoid deployment errors
+var baseSecrets = [
+  {
+    name: 'database-url'
+    value: databaseConnectionString
+  }
+]
+
+var acsSecret = empty(acsConnectionString) ? [] : [
+  {
+    name: 'acs-connection-string'
+    value: acsConnectionString
+  }
+]
+
+var registrySecret = useRegistryCredentials ? [
+  {
+    name: 'acr-password'
+    value: acrPassword
+  }
+] : []
+
+var combinedSecrets = baseSecrets
+  ++ acsSecret
+  ++ registrySecret
+
+// Build environment variables referencing secrets when present
+var baseEnv = [
+  {
+    name: 'DATABASE_URL'
+    secretRef: 'database-url'
+  }
+]
+
+var acsEnv = empty(acsConnectionString) ? [] : [
+  {
+    name: 'ACS_CONNECTION_STRING'
+    secretRef: 'acs-connection-string'
+  }
+]
+
+var companyEnv = empty(acsSenderEmail) ? [] : [
+  {
+    name: 'ACS_SENDER_EMAIL'
+    value: acsSenderEmail
+  }
+]
 
 // Create Container App
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -70,27 +121,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'http'
         allowInsecure: false // Use HTTPS
       }
-      registries: usePublicImage ? [] : [
+      registries: useRegistryCredentials ? [
         {
           server: acrLoginServer
-          username: containerRegistry.listCredentials().username
+          username: acrUsername
           passwordSecretRef: 'acr-password'
         }
-      ]
-      secrets: usePublicImage ? [] : [
-        {
-          name: 'acr-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
-        {
-          name: 'database-url'
-          value: databaseConnectionString
-        }
-        {
-          name: 'acs-connection-string'
-          value: acsConnectionString
-        }
-      ]
+      ] : []
+      secrets: combinedSecrets
     }
     template: {
       containers: [
@@ -101,24 +139,15 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: [
-            {
-              name: 'DATABASE_URL'
-              secretRef: 'database-url'
-            }
-            {
-              name: 'ACS_CONNECTION_STRING'
-              secretRef: 'acs-connection-string'
-            }
-            {
-              name: 'ACS_SENDER_EMAIL'
-              value: acsSenderEmail
-            }
-            {
-              name: 'COMPANY_NAME'
-              value: companyName
-            }
-          ]
+          env: baseEnv
+            ++ acsEnv
+            ++ companyEnv
+            ++ [
+              {
+                name: 'COMPANY_NAME'
+                value: companyName
+              }
+            ]
         }
       ]
       scale: {

@@ -130,9 +130,10 @@ module apiApp 'modules/app.bicep' = {
     location: location
     environmentId: environment.outputs.environmentId
     acrLoginServer: acr.outputs.acrLoginServer
-    acrName: acr.outputs.acrName
     imageName: 'api:${imageTag}'
     usePublicImage: true // Use placeholder on first deploy
+  acrUsername: ''
+  acrPassword: ''
     cpu: '0.25'  // Smaller since no frontend
     memory: '0.5Gi'  // Smaller since no frontend
     minReplicas: 1
