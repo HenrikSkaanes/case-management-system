@@ -67,7 +67,14 @@ jobs:
             --username ${{ steps.acr-creds.outputs.username }} \
             --password ${{ steps.acr-creds.outputs.password }}
 
-      - name: 🚀 Update Container App
+      - name: � Set Database URL Secret
+        run: |
+          az containerapp secret set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --secrets database-url="${{ secrets.DATABASE_URL }}"
+
+      - name: � Update Container App
         run: |
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
@@ -76,13 +83,6 @@ jobs:
             --set-env-vars DATABASE_URL=secretref:database-url
           
           echo "✅ Backend API updated successfully!"
-
-      - name: 🔐 Set Database URL Secret
-        run: |
-          az containerapp secret set \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --secrets database-url="${{ secrets.DATABASE_URL }}"
 
       - name: 📊 Get API URL
         id: get-url
