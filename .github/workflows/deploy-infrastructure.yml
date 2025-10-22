@@ -60,7 +60,6 @@ jobs:
           echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
           echo "postgresqlServerFqdn=$(echo $output | jq -r '.postgresqlServerFqdn.value')" >> $GITHUB_OUTPUT
-          echo "databaseConnectionString=$(echo $output | jq -r '.databaseConnectionString.value')" >> $GITHUB_OUTPUT
           echo "acsServiceName=$(echo $output | jq -r '.acsServiceName.value')" >> $GITHUB_OUTPUT
           
           echo "✅ Infrastructure deployed successfully!"

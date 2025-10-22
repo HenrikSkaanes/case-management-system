@@ -60,52 +60,52 @@ param companyName string = 'Wrangler Tax Services'
 var useRegistryCredentials = !usePublicImage && acrUsername != '' && acrPassword != ''
 
 // Build secrets collection without using list* functions to avoid deployment errors
-var baseSecrets = [
-  {
-    name: 'database-url'
-    value: databaseConnectionString
-  }
-]
-
-var acsSecret = empty(acsConnectionString) ? [] : [
-  {
-    name: 'acs-connection-string'
-    value: acsConnectionString
-  }
-]
-
-var registrySecret = useRegistryCredentials ? [
-  {
-    name: 'acr-password'
-    value: acrPassword
-  }
-] : []
-
-var combinedSecrets = baseSecrets
-  ++ acsSecret
-  ++ registrySecret
+var combinedSecrets = concat(
+  [
+    {
+      name: 'database-url'
+      value: databaseConnectionString
+    }
+  ],
+  empty(acsConnectionString) ? [] : [
+    {
+      name: 'acs-connection-string'
+      value: acsConnectionString
+    }
+  ],
+  useRegistryCredentials ? [
+    {
+      name: 'acr-password'
+      value: acrPassword
+    }
+  ] : []
+)
 
 // Build environment variables referencing secrets when present
-var baseEnv = [
-  {
-    name: 'DATABASE_URL'
-    secretRef: 'database-url'
-  }
-]
-
-var acsEnv = empty(acsConnectionString) ? [] : [
-  {
-    name: 'ACS_CONNECTION_STRING'
-    secretRef: 'acs-connection-string'
-  }
-]
-
-var companyEnv = empty(acsSenderEmail) ? [] : [
-  {
-    name: 'ACS_SENDER_EMAIL'
-    value: acsSenderEmail
-  }
-]
+var environmentVariables = concat(
+  [
+    {
+      name: 'DATABASE_URL'
+      secretRef: 'database-url'
+    }
+    {
+      name: 'COMPANY_NAME'
+      value: companyName
+    }
+  ],
+  empty(acsConnectionString) ? [] : [
+    {
+      name: 'ACS_CONNECTION_STRING'
+      secretRef: 'acs-connection-string'
+    }
+  ],
+  empty(acsSenderEmail) ? [] : [
+    {
+      name: 'ACS_SENDER_EMAIL'
+      value: acsSenderEmail
+    }
+  ]
+)
 
 // Create Container App
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -139,15 +139,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: baseEnv
-            ++ acsEnv
-            ++ companyEnv
-            ++ [
-              {
-                name: 'COMPANY_NAME'
-                value: companyName
-              }
-            ]
+          env: environmentVariables
         }
       ]
       scale: {

@@ -47,7 +47,6 @@ var tags = {
 // Resource names
 var acrName = 'acr${replace(baseName, '-', '')}${environmentName}'
 var logAnalyticsName = 'log-${resourceSuffix}'
-var environmentResourceName = 'cae-${resourceSuffix}'
 var apiAppName = 'ca-api-${resourceSuffix}'
 var staticWebAppName = 'stapp-${resourceSuffix}'
 var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName}'
@@ -174,7 +173,6 @@ output resourceGroupName string = resourceGroup().name
 // PostgreSQL outputs
 output postgresqlServerFqdn string = postgresql.outputs.serverFqdn
 output postgresqlDatabaseName string = postgresql.outputs.databaseName
-output databaseConnectionString string = 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
 
 // Azure Communication Services outputs
 output acsServiceName string = communicationServices.outputs.communicationServiceName
