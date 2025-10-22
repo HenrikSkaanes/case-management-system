@@ -49,6 +49,7 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --template-file infra/bicep/main.bicep \
             --parameters infra/bicep/main.parameters.dev.json \
+            --parameters postgresqlAdminPassword='${{ secrets.POSTGRESQL_ADMIN_PASSWORD }}' \
             --query 'properties.outputs' \
             -o json)
           
@@ -59,6 +60,8 @@ jobs:
           echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppDeploymentToken=$(echo $output | jq -r '.staticWebAppDeploymentToken.value')" >> $GITHUB_OUTPUT
+          echo "postgresqlServerFqdn=$(echo $output | jq -r '.postgresqlServerFqdn.value')" >> $GITHUB_OUTPUT
+          echo "databaseConnectionString=$(echo $output | jq -r '.databaseConnectionString.value')" >> $GITHUB_OUTPUT
           
           echo "✅ Infrastructure deployed successfully!"
 
@@ -70,13 +73,12 @@ jobs:
           echo "- **Static Web App:** \`${{ steps.deploy.outputs.staticWebAppName }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **API Container App:** \`${{ steps.deploy.outputs.apiAppName }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Container Registry:** \`${{ steps.deploy.outputs.acrLoginServer }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **PostgreSQL Server:** \`${{ steps.deploy.outputs.postgresqlServerFqdn }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Add GitHub Secret:** \`STATIC_WEB_APP_DEPLOYMENT_TOKEN\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Copy deployment token from output above" >> $GITHUB_STEP_SUMMARY
-          echo "3. Go to Settings > Secrets > Actions > New secret" >> $GITHUB_STEP_SUMMARY
-          echo "4. Deploy backend: Push changes to \`backend/\`" >> $GITHUB_STEP_SUMMARY
-          echo "5. Deploy frontend: Push changes to \`frontend/\`" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Add DATABASE_URL to GitHub Secrets for backend deployment**" >> $GITHUB_STEP_SUMMARY
+          echo "2. Deploy backend: Push changes to \`backend/\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Deploy frontend: Push changes to \`frontend/\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Important - Save Deployment Token
         run: |

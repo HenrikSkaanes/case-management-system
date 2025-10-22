@@ -27,6 +27,10 @@ param staticWebAppLocation string = 'westeurope'
 @description('Container image tag to deploy')
 param imageTag string = 'latest'
 
+@description('PostgreSQL administrator password')
+@secure()
+param postgresqlAdminPassword string
+
 // ============================================
 // VARIABLES
 // ============================================
@@ -46,6 +50,7 @@ var logAnalyticsName = 'log-${resourceSuffix}'
 var environmentResourceName = 'cae-${resourceSuffix}'
 var apiAppName = 'ca-api-${resourceSuffix}'
 var staticWebAppName = 'stapp-${resourceSuffix}'
+var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName}'
 
 // ============================================
 // MODULES
@@ -84,7 +89,27 @@ module environment 'modules/environment.bicep' = {
   }
 }
 
-// 4. Container App (Backend API only - NO frontend)
+// 4. PostgreSQL Database (persistent storage)
+module postgresql 'modules/postgresql.bicep' = {
+  name: 'postgresql-deployment'
+  params: {
+    serverName: postgresqlServerName
+    location: location
+    adminUsername: 'caseadmin'
+    adminPassword: postgresqlAdminPassword
+    databaseName: 'casemanagement'
+    postgresqlVersion: '16'
+    skuTier: 'Burstable'
+    skuName: 'Standard_B1ms'  // ~$25/month
+    storageSizeGB: 32
+    tags: tags
+  }
+}
+
+  }
+}
+
+// 5. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
   name: 'api-app-deployment'
   params: {
@@ -102,6 +127,9 @@ module apiApp 'modules/app.bicep' = {
     tags: tags
   }
 }
+
+// 6. Static Web App (Frontend on CDN)
+module staticWebApp 'modules/staticwebapp.bicep' = {
 
 // 5. Static Web App (Frontend on CDN)
 module staticWebApp 'modules/staticwebapp.bicep' = {
@@ -128,6 +156,11 @@ output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output staticWebAppDeploymentToken string = staticWebApp.outputs.deploymentToken
 output resourceGroupName string = resourceGroup().name
 
+// PostgreSQL outputs
+output postgresqlServerFqdn string = postgresql.outputs.serverFqdn
+output postgresqlDatabaseName string = postgresql.outputs.databaseName
+output databaseConnectionString string = 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
+
 // Deployment summary message
 output deploymentMessage string = '''
 🎉 Deployment Complete!
@@ -140,6 +173,11 @@ BACKEND (Container App API):
 🔗 API URL: https://${apiApp.outputs.fqdn}
 📊 API Docs: https://${apiApp.outputs.fqdn}/docs
 🏥 Health: https://${apiApp.outputs.fqdn}/health
+
+DATABASE (PostgreSQL Flexible Server):
+🗄️  Server: ${postgresql.outputs.serverFqdn}
+📦 Database: ${postgresql.outputs.databaseName}
+🔐 Connection: Use DATABASE_URL secret in backend
 
 Container Registry: ${acr.outputs.acrLoginServer}
 

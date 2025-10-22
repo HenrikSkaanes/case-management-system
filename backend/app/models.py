@@ -1,11 +1,10 @@
 """
 Database models - Python classes that represent database tables.
 
-This Ticket model will become a 'tickets' table in SQLite.
-Each instance of this class represents one row in the table.
+Enhanced Ticket model with comprehensive fields for analytics and case management.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum
@@ -14,51 +13,76 @@ from .database import Base
 
 
 class TicketStatus(str, enum.Enum):
-    """
-    Enum for ticket status - restricts values to these three options.
-    This ensures data consistency.
-    """
+    """Ticket lifecycle status"""
     NEW = "new"
     IN_PROGRESS = "in_progress"
-    DONE = "done"
+    PENDING_CUSTOMER = "pending_customer"  # Waiting for customer response
+    RESOLVED = "resolved"  # Fixed, awaiting closure
+    CLOSED = "closed"  # Fully closed
+    DONE = "done"  # Legacy compatibility
 
 
 class TicketPriority(str, enum.Enum):
-    """
-    Enum for ticket priority levels.
-    """
+    """Priority levels"""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+    CRITICAL = "critical"
 
 
 class Ticket(Base):
     """
-    Ticket model - represents a support ticket/case.
+    Enhanced Ticket/Case model for comprehensive case management.
     
-    This will create a table with these columns:
-    - id: Primary key (auto-incremented)
-    - title: Short description
-    - description: Full details
-    - status: new, in_progress, or done
-    - category: e.g., "Tax", "VAT", "Fees"
-    - priority: low, medium, or high
-    - created_at: When the ticket was created
-    - updated_at: When the ticket was last modified
+    Includes fields for:
+    - Customer information
+    - Assignment tracking
+    - SLA/timeline metrics
+    - Analytics data
     """
     __tablename__ = "tickets"
 
+    # Primary Key
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-    status = Column(String, default=TicketStatus.NEW, nullable=False)
-    category = Column(String, nullable=False)
-    priority = Column(String, default=TicketPriority.MEDIUM, nullable=False)
     
-    # Timestamps - automatically managed
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # Ticket Information
+    ticket_number = Column(String, unique=True, index=True, nullable=True)  # e.g., "TAX-2025-0001"
+    title = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=False, index=True)  # income_tax, vat, deductions, etc.
+    priority = Column(String, default=TicketPriority.MEDIUM, nullable=False, index=True)
+    status = Column(String, default=TicketStatus.NEW, nullable=False, index=True)
+    
+    # Customer Information
+    customer_name = Column(String, nullable=True, index=True)
+    customer_email = Column(String, nullable=True, index=True)
+    customer_phone = Column(String, nullable=True)
+    customer_id = Column(String, nullable=True, index=True)  # External reference ID
+    
+    # Assignment & Ownership
+    assigned_to = Column(String, nullable=True, index=True)  # Employee name/ID
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
+    department = Column(String, nullable=True, index=True)  # returns, compliance, general
+    
+    # Timeline & SLA Tracking
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    first_response_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Calculated metrics (in minutes) - can be computed or stored
+    response_time_minutes = Column(Integer, nullable=True)  # Time to first response
+    resolution_time_minutes = Column(Integer, nullable=True)  # Time to resolution
+    
+    # Analytics & Additional Data
+    tags = Column(JSON, nullable=True)  # Array of tags: ["urgent", "vip", "complex"]
+    satisfaction_rating = Column(Integer, nullable=True)  # 1-5 stars
+    reopened_count = Column(Integer, default=0)  # How many times reopened
+    escalated = Column(Boolean, default=False)  # Escalated to supervisor
+    notes = Column(Text, nullable=True)  # Internal notes
 
     def __repr__(self):
         """String representation for debugging"""
-        return f"<Ticket {self.id}: {self.title} ({self.status})>"
+        return f"<Ticket {self.ticket_number or self.id}: {self.title} ({self.status})>"
