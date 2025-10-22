@@ -83,6 +83,19 @@ form {
   padding: 24px;
 }
 
+.form-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0078D4;
+  margin: 24px 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #0078D4;
+}
+
+.form-section-title:first-of-type {
+  margin-top: 0;
+}
+
 .form-group {
   margin-bottom: 20px;
 }

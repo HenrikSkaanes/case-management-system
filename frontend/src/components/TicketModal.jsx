@@ -12,6 +12,9 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
     description: '',
     category: '',
     priority: 'medium',
+    customer_name: '',
+    customer_email: '',
+    customer_phone: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -23,6 +26,9 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
         description: ticket.description || '',
         category: ticket.category || '',
         priority: ticket.priority || 'medium',
+        customer_name: ticket.customer_name || '',
+        customer_email: ticket.customer_email || '',
+        customer_phone: ticket.customer_phone || '',
       });
     } else {
       setFormData({
@@ -30,6 +36,9 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
         description: '',
         category: '',
         priority: 'medium',
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
       });
     }
     setErrors({});
@@ -53,6 +62,16 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
     
     if (!formData.category.trim()) {
       newErrors.category = 'Category is required';
+    }
+    
+    if (!formData.customer_name.trim()) {
+      newErrors.customer_name = 'Customer name is required';
+    }
+    
+    if (!formData.customer_email.trim()) {
+      newErrors.customer_email = 'Customer email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customer_email)) {
+      newErrors.customer_email = 'Invalid email format';
     }
     
     setErrors(newErrors);
@@ -107,6 +126,8 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
             />
           </div>
 
+          <div className="form-section-title">📋 Ticket Details</div>
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="category">
@@ -120,11 +141,11 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
                 className={errors.category ? 'error' : ''}
               >
                 <option value="">Select category</option>
-                <option value="Tax">Tax</option>
-                <option value="VAT">VAT</option>
-                <option value="Fees">Fees</option>
-                <option value="General">General</option>
-                <option value="Support">Support</option>
+                <option value="returns">Tax Returns</option>
+                <option value="vat">VAT Support</option>
+                <option value="deductions">Deductions</option>
+                <option value="compliance">Compliance</option>
+                <option value="other">Other</option>
               </select>
               {errors.category && <span className="error-message">{errors.category}</span>}
             </div>
@@ -139,8 +160,57 @@ const TicketModal = ({ isOpen, onClose, onSubmit, ticket = null }) => {
               >
                 <option value="low">🟢 Low</option>
                 <option value="medium">🟡 Medium</option>
-                <option value="high">🔴 High</option>
+                <option value="high">� High</option>
+                <option value="critical">�🔴 Critical</option>
               </select>
+            </div>
+          </div>
+
+          <div className="form-section-title">👤 Customer Information</div>
+
+          <div className="form-group">
+            <label htmlFor="customer_name">
+              Customer Name <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="customer_name"
+              name="customer_name"
+              value={formData.customer_name}
+              onChange={handleChange}
+              placeholder="Enter customer full name"
+              className={errors.customer_name ? 'error' : ''}
+            />
+            {errors.customer_name && <span className="error-message">{errors.customer_name}</span>}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="customer_email">
+                Email <span className="required">*</span>
+              </label>
+              <input
+                type="email"
+                id="customer_email"
+                name="customer_email"
+                value={formData.customer_email}
+                onChange={handleChange}
+                placeholder="customer@example.com"
+                className={errors.customer_email ? 'error' : ''}
+              />
+              {errors.customer_email && <span className="error-message">{errors.customer_email}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="customer_phone">Phone</label>
+              <input
+                type="tel"
+                id="customer_phone"
+                name="customer_phone"
+                value={formData.customer_phone}
+                onChange={handleChange}
+                placeholder="+47 123 45 678"
+              />
             </div>
           </div>
 
