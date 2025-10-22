@@ -18,6 +18,7 @@ function Dashboard() {
   const [filterPriority, setFilterPriority] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTicket, setEditingTicket] = useState(null)
+  const [activeTab, setActiveTab] = useState('kanban') // 'kanban' or 'metrics'
 
   useEffect(() => {
     loadTickets()
@@ -99,10 +100,37 @@ function Dashboard() {
   const ticketsByStatus = {
     new: filteredTickets.filter(t => t.status === 'new'),
     in_progress: filteredTickets.filter(t => t.status === 'in_progress'),
-    done: filteredTickets.filter(t => t.status === 'done'),
+    resolved: filteredTickets.filter(t => t.status === 'resolved' || t.status === 'closed'),
   }
 
-  const categories = [...new Set(tickets.map(t => t.category))].sort()
+  const categories = [...new Set(tickets.map(t => t.category))].filter(Boolean).sort()
+  
+  // Metrics calculations
+  const priorityCounts = {
+    low: tickets.filter(t => t.priority === 'low').length,
+    medium: tickets.filter(t => t.priority === 'medium').length,
+    high: tickets.filter(t => t.priority === 'high').length,
+    critical: tickets.filter(t => t.priority === 'critical').length,
+  }
+  
+  // Average resolution time (if we have resolved tickets with resolution_time_minutes)
+  const resolvedTicketsWithTime = tickets.filter(t => 
+    (t.status === 'resolved' || t.status === 'closed') && t.resolution_time_minutes
+  )
+  const avgResolutionTime = resolvedTicketsWithTime.length > 0
+    ? Math.round(resolvedTicketsWithTime.reduce((sum, t) => sum + t.resolution_time_minutes, 0) / resolvedTicketsWithTime.length)
+    : 0
+  
+  // Tickets created per day (last 7 days)
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (6 - i))
+    return date.toISOString().split('T')[0]
+  })
+  
+  const ticketsPerDay = last7Days.map(day => {
+    return tickets.filter(t => t.created_at?.startsWith(day)).length
+  })
 
   if (loading) {
     return (
@@ -147,6 +175,21 @@ function Dashboard() {
             onClick={() => setIsModalOpen(true)}
           >
             ➕ New Ticket
+          </button>
+        </div>
+
+        <div className="tabs">
+          <button 
+            className={`tab ${activeTab === 'kanban' ? 'active' : ''}`}
+            onClick={() => setActiveTab('kanban')}
+          >
+            📋 Kanban Board
+          </button>
+          <button 
+            className={`tab ${activeTab === 'metrics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('metrics')}
+          >
+            📊 Metrics & KPIs
           </button>
         </div>
 
@@ -202,41 +245,187 @@ function Dashboard() {
             <span className="stat-label">In Progress</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{ticketsByStatus.done.length}</span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-value">{ticketsByStatus.resolved.length}</span>
+            <span className="stat-label">Resolved</span>
           </div>
         </div>
       </header>
 
-      <main className="kanban-board">
-        <KanbanColumn
-          status="new"
-          title="New"
-          icon="📥"
-          tickets={ticketsByStatus.new}
-          onUpdateTicket={handleUpdateTicket}
-          onEditTicket={handleEditTicket}
-          onDeleteTicket={handleDeleteTicket}
-        />
-        <KanbanColumn
-          status="in_progress"
-          title="In Progress"
-          icon="⚙️"
-          tickets={ticketsByStatus.in_progress}
-          onUpdateTicket={handleUpdateTicket}
-          onEditTicket={handleEditTicket}
-          onDeleteTicket={handleDeleteTicket}
-        />
-        <KanbanColumn
-          status="done"
-          title="Done"
-          icon="✅"
-          tickets={ticketsByStatus.done}
-          onUpdateTicket={handleUpdateTicket}
-          onEditTicket={handleEditTicket}
-          onDeleteTicket={handleDeleteTicket}
-        />
-      </main>
+      {activeTab === 'kanban' ? (
+        <main className="kanban-board">
+          <KanbanColumn
+            status="new"
+            title="New"
+            icon="📥"
+            tickets={ticketsByStatus.new}
+            onUpdateTicket={handleUpdateTicket}
+            onEditTicket={handleEditTicket}
+            onDeleteTicket={handleDeleteTicket}
+          />
+          <KanbanColumn
+            status="in_progress"
+            title="In Progress"
+            icon="⚙️"
+            tickets={ticketsByStatus.in_progress}
+            onUpdateTicket={handleUpdateTicket}
+            onEditTicket={handleEditTicket}
+            onDeleteTicket={handleDeleteTicket}
+          />
+          <KanbanColumn
+            status="resolved"
+            title="Resolved"
+            icon="✅"
+            tickets={ticketsByStatus.resolved}
+            onUpdateTicket={handleUpdateTicket}
+            onEditTicket={handleEditTicket}
+            onDeleteTicket={handleDeleteTicket}
+          />
+        </main>
+      ) : (
+        <main className="metrics-view">
+          <div className="metrics-grid">
+            
+            {/* Priority Distribution */}
+            <div className="metric-card">
+              <h3>📊 Cases by Priority</h3>
+              <div className="priority-chart">
+                <div className="priority-bar">
+                  <div className="priority-label">
+                    <span className="priority-icon critical">🔴</span>
+                    <span>Critical</span>
+                  </div>
+                  <div className="bar-container">
+                    <div 
+                      className="bar critical" 
+                      style={{width: `${tickets.length > 0 ? (priorityCounts.critical / tickets.length) * 100 : 0}%`}}
+                    ></div>
+                    <span className="bar-value">{priorityCounts.critical}</span>
+                  </div>
+                </div>
+                <div className="priority-bar">
+                  <div className="priority-label">
+                    <span className="priority-icon high">🟠</span>
+                    <span>High</span>
+                  </div>
+                  <div className="bar-container">
+                    <div 
+                      className="bar high" 
+                      style={{width: `${tickets.length > 0 ? (priorityCounts.high / tickets.length) * 100 : 0}%`}}
+                    ></div>
+                    <span className="bar-value">{priorityCounts.high}</span>
+                  </div>
+                </div>
+                <div className="priority-bar">
+                  <div className="priority-label">
+                    <span className="priority-icon medium">🟡</span>
+                    <span>Medium</span>
+                  </div>
+                  <div className="bar-container">
+                    <div 
+                      className="bar medium" 
+                      style={{width: `${tickets.length > 0 ? (priorityCounts.medium / tickets.length) * 100 : 0}%`}}
+                    ></div>
+                    <span className="bar-value">{priorityCounts.medium}</span>
+                  </div>
+                </div>
+                <div className="priority-bar">
+                  <div className="priority-label">
+                    <span className="priority-icon low">🟢</span>
+                    <span>Low</span>
+                  </div>
+                  <div className="bar-container">
+                    <div 
+                      className="bar low" 
+                      style={{width: `${tickets.length > 0 ? (priorityCounts.low / tickets.length) * 100 : 0}%`}}
+                    ></div>
+                    <span className="bar-value">{priorityCounts.low}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cases Trend (Last 7 Days) */}
+            <div className="metric-card">
+              <h3>📈 New Cases (Last 7 Days)</h3>
+              <div className="line-chart">
+                {last7Days.map((day, index) => (
+                  <div key={day} className="chart-bar-wrapper">
+                    <div className="chart-bar-container">
+                      <div 
+                        className="chart-bar"
+                        style={{
+                          height: `${Math.max(...ticketsPerDay) > 0 ? (ticketsPerDay[index] / Math.max(...ticketsPerDay)) * 100 : 0}%`
+                        }}
+                      >
+                        <span className="bar-label">{ticketsPerDay[index]}</span>
+                      </div>
+                    </div>
+                    <div className="chart-x-label">
+                      {new Date(day).toLocaleDateString('en-US', {weekday: 'short'})}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Key Metrics */}
+            <div className="metric-card">
+              <h3>⚡ Key Performance Indicators</h3>
+              <div className="kpi-list">
+                <div className="kpi-item">
+                  <div className="kpi-label">Average Resolution Time</div>
+                  <div className="kpi-value">
+                    {avgResolutionTime > 0 ? `${Math.floor(avgResolutionTime / 60)}h ${avgResolutionTime % 60}m` : 'N/A'}
+                  </div>
+                </div>
+                <div className="kpi-item">
+                  <div className="kpi-label">Open Cases</div>
+                  <div className="kpi-value">{ticketsByStatus.new.length + ticketsByStatus.in_progress.length}</div>
+                </div>
+                <div className="kpi-item">
+                  <div className="kpi-label">Resolution Rate</div>
+                  <div className="kpi-value">
+                    {tickets.length > 0 ? Math.round((ticketsByStatus.resolved.length / tickets.length) * 100) : 0}%
+                  </div>
+                </div>
+                <div className="kpi-item">
+                  <div className="kpi-label">Total Cases</div>
+                  <div className="kpi-value">{tickets.length}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Breakdown */}
+            <div className="metric-card">
+              <h3>📁 Cases by Category</h3>
+              <div className="category-list">
+                {categories.map(category => {
+                  const count = tickets.filter(t => t.category === category).length
+                  const percentage = tickets.length > 0 ? (count / tickets.length) * 100 : 0
+                  return (
+                    <div key={category} className="category-item">
+                      <div className="category-header">
+                        <span className="category-name">{category}</span>
+                        <span className="category-count">{count}</span>
+                      </div>
+                      <div className="category-bar-bg">
+                        <div 
+                          className="category-bar-fill" 
+                          style={{width: `${percentage}%`}}
+                        ></div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {categories.length === 0 && (
+                  <p className="no-data">No categories yet</p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </main>
+      )}
 
       <TicketModal
         isOpen={isModalOpen}

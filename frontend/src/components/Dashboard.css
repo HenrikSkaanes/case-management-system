@@ -316,3 +316,267 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 0 0;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.tab:hover {
+  color: #0078D4;
+  background: rgba(0, 120, 212, 0.05);
+}
+
+.tab.active {
+  color: #0078D4;
+  border-bottom-color: #0078D4;
+}
+
+/* Metrics View */
+.metrics-view {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.metric-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.metric-card h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Priority Chart */
+.priority-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.priority-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.priority-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.priority-icon {
+  font-size: 16px;
+}
+
+.bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.bar.critical {
+  background: linear-gradient(90deg, #dc3545, #c82333);
+}
+
+.bar.high {
+  background: linear-gradient(90deg, #fd7e14, #e8590c);
+}
+
+.bar.medium {
+  background: linear-gradient(90deg, #ffc107, #e0a800);
+}
+
+.bar.low {
+  background: linear-gradient(90deg, #28a745, #218838);
+}
+
+.bar-value {
+  font-weight: 700;
+  color: #666;
+  min-width: 30px;
+}
+
+/* Line Chart */
+.line-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 200px;
+  padding: 20px 0;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.chart-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-bar-container {
+  width: 100%;
+  height: 150px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar {
+  width: 60%;
+  background: linear-gradient(180deg, #0078D4, #106ebe);
+  border-radius: 6px 6px 0 0;
+  min-height: 4px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  transition: height 0.3s ease;
+}
+
+.bar-label {
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.chart-x-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+/* KPI List */
+.kpi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kpi-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #0078D4;
+}
+
+.kpi-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0078D4;
+}
+
+/* Category List */
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-name {
+  font-weight: 600;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.category-count {
+  font-weight: 700;
+  color: #0078D4;
+  background: rgba(0, 120, 212, 0.1);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.category-bar-bg {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0078D4, #106ebe);
+  transition: width 0.3s ease;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+}
+

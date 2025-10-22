@@ -1,9 +1,70 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createTicket } from '../services/api';
 import './LandingPage.css';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: 'medium',
+    customer_name: '',
+    customer_email: '',
+    customer_phone: '',
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success' or 'error'
+  
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+  
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.title.trim()) errors.title = 'Title is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.customer_name.trim()) errors.customer_name = 'Name is required';
+    if (!formData.customer_email.trim()) {
+      errors.customer_email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customer_email)) {
+      errors.customer_email = 'Invalid email format';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const handleSubmitCase = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    
+    try {
+      await createTicket(formData);
+      setSubmitStatus('success');
+      setFormData({
+        title: '',
+        description: '',
+        category: '',
+        priority: 'medium',
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
+      });
+      setTimeout(() => {
+        setShowSubmitForm(false);
+        setSubmitStatus(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error submitting case:', error);
+      setSubmitStatus('error');
+    }
+  };
 
   return (
     <div className="landing-page">
@@ -117,8 +178,182 @@ const LandingPage = () => {
             <p className="card-value">123 Government Plaza</p>
             <p className="card-description">Tax Valley, TV 12345</p>
           </div>
+
+          <div className="info-card submit-case-card">
+            <div className="card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 4V20M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <h4>Submit a Case</h4>
+            <p className="card-value">Get Help Online</p>
+            <button 
+              className="submit-case-btn"
+              onClick={() => setShowSubmitForm(true)}
+            >
+              Submit New Case
+            </button>
+          </div>
         </div>
       </section>
+
+      {/* Case Submission Modal */}
+      {showSubmitForm && (
+        <div className="modal-overlay" onClick={() => setShowSubmitForm(false)}>
+          <div className="modal-content submit-case-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📝 Submit a New Case</h2>
+              <button className="close-button" onClick={() => setShowSubmitForm(false)}>✕</button>
+            </div>
+
+            {submitStatus === 'success' ? (
+              <div className="success-message">
+                <div className="success-icon">✅</div>
+                <h3>Case Submitted Successfully!</h3>
+                <p>We've received your case and will get back to you soon.</p>
+                <p className="success-detail">Check your email for confirmation.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitCase} className="submit-case-form">
+                <div className="form-section">
+                  <h3>📋 Case Details</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="title">
+                      Issue Title <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="title"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleFormChange}
+                      placeholder="Brief description of your issue"
+                      className={formErrors.title ? 'error' : ''}
+                    />
+                    {formErrors.title && <span className="error-message">{formErrors.title}</span>}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="description">Description</label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleFormChange}
+                      placeholder="Provide detailed information about your issue"
+                      rows="4"
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="category">
+                        Category <span className="required">*</span>
+                      </label>
+                      <select
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        className={formErrors.category ? 'error' : ''}
+                      >
+                        <option value="">Select category</option>
+                        <option value="returns">Tax Returns</option>
+                        <option value="vat">VAT Support</option>
+                        <option value="deductions">Deductions</option>
+                        <option value="compliance">Compliance</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {formErrors.category && <span className="error-message">{formErrors.category}</span>}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="priority">Priority</label>
+                      <select
+                        id="priority"
+                        name="priority"
+                        value={formData.priority}
+                        onChange={handleFormChange}
+                      >
+                        <option value="low">🟢 Low</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="high">🟠 High</option>
+                        <option value="critical">🔴 Critical</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <h3>👤 Your Information</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="customer_name">
+                      Full Name <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="customer_name"
+                      name="customer_name"
+                      value={formData.customer_name}
+                      onChange={handleFormChange}
+                      placeholder="Your full name"
+                      className={formErrors.customer_name ? 'error' : ''}
+                    />
+                    {formErrors.customer_name && <span className="error-message">{formErrors.customer_name}</span>}
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="customer_email">
+                        Email <span className="required">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="customer_email"
+                        name="customer_email"
+                        value={formData.customer_email}
+                        onChange={handleFormChange}
+                        placeholder="your.email@example.com"
+                        className={formErrors.customer_email ? 'error' : ''}
+                      />
+                      {formErrors.customer_email && <span className="error-message">{formErrors.customer_email}</span>}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="customer_phone">Phone</label>
+                      <input
+                        type="tel"
+                        id="customer_phone"
+                        name="customer_phone"
+                        value={formData.customer_phone}
+                        onChange={handleFormChange}
+                        placeholder="+47 123 45 678"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {submitStatus === 'error' && (
+                  <div className="error-banner">
+                    ⚠️ Failed to submit case. Please try again or contact us directly.
+                  </div>
+                )}
+
+                <div className="modal-footer">
+                  <button type="button" className="btn-cancel" onClick={() => setShowSubmitForm(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-submit">
+                    Submit Case
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Services Section */}
       <section className="services-section">
