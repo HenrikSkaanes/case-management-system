@@ -23,13 +23,12 @@ app = FastAPI(
 )
 
 # CORS - Allow Static Web App frontend to call this API
-# The wildcard for azurestaticapps.net allows any Static Web App subdomain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",              # Vite dev server (local development)
-        "http://localhost:3000",              # Alternative local port
-        "https://*.azurestaticapps.net",      # Azure Static Web App (production)
+        "http://localhost:5173",                                      # Vite dev server (local development)
+        "http://localhost:3000",                                      # Alternative local port
+        "https://red-stone-034abd803.3.azurestaticapps.net",         # Azure Static Web App (production)
         # Add your custom domain here when you set one up
     ],
     allow_credentials=True,
