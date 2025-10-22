@@ -17,7 +17,7 @@ env:
 
 jobs:
   deploy-infrastructure:
-    name: 🏗️ Deploy Azure Infrastructure
+    name: Deploy Azure Infrastructure
     runs-on: ubuntu-latest
     outputs:
       api-url: ${{ steps.deploy.outputs.apiUrl }}
@@ -28,21 +28,21 @@ jobs:
       deployment-token: ${{ steps.deploy.outputs.staticWebAppDeploymentToken }}
     
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔐 Azure Login
+      - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🏗️ Create Resource Group
+      - name: Create Resource Group
         run: |
           az group create \
             --name ${{ env.AZURE_RESOURCE_GROUP }} \
             --location ${{ env.AZURE_LOCATION }}
 
-      - name: 🚀 Deploy Bicep Template
+      - name: Deploy Bicep Template
         id: deploy
         run: |
           output=$(az deployment group create \
@@ -62,14 +62,14 @@ jobs:
           
           echo "✅ Infrastructure deployed successfully!"
 
-      - name: 📊 Deployment Summary
+      - name: Deployment Summary
         run: |
-          echo "## 🏗️ Infrastructure Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "## Infrastructure Deployed!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Resources Created:" >> $GITHUB_STEP_SUMMARY
-          echo "- 🌐 **Static Web App:** \`${{ steps.deploy.outputs.staticWebAppName }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔗 **API Container App:** \`${{ steps.deploy.outputs.apiAppName }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 📦 **Container Registry:** \`${{ steps.deploy.outputs.acrLoginServer }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Static Web App:** \`${{ steps.deploy.outputs.staticWebAppName }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Container App:** \`${{ steps.deploy.outputs.apiAppName }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Registry:** \`${{ steps.deploy.outputs.acrLoginServer }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "1. **Add GitHub Secret:** \`STATIC_WEB_APP_DEPLOYMENT_TOKEN\`" >> $GITHUB_STEP_SUMMARY
@@ -78,7 +78,7 @@ jobs:
           echo "4. Deploy backend: Push changes to \`backend/\`" >> $GITHUB_STEP_SUMMARY
           echo "5. Deploy frontend: Push changes to \`frontend/\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: ⚠️ Important: Save Deployment Token
+      - name: Important - Save Deployment Token
         run: |
           echo "::warning::Save this deployment token to GitHub Secrets as STATIC_WEB_APP_DEPLOYMENT_TOKEN"
           echo "Token: ${{ steps.deploy.outputs.staticWebAppDeploymentToken }}"
