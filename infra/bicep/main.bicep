@@ -47,11 +47,10 @@ var tags = {
 // Resource names
 var acrName = 'acr${replace(baseName, '-', '')}${environmentName}'
 var logAnalyticsName = 'log-${resourceSuffix}'
+var containerAppEnvironmentName = 'cae-${resourceSuffix}'
 var apiAppName = 'ca-api-${resourceSuffix}'
 var staticWebAppName = 'stapp-${resourceSuffix}'
 var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName}'
-var communicationServicesName = 'acs-${resourceSuffix}'
-var emailServiceName = 'email-${resourceSuffix}'
 
 // ============================================
 // MODULES
@@ -82,7 +81,7 @@ module logs 'modules/logs.bicep' = {
 module environment 'modules/environment.bicep' = {
   name: 'environment-deployment'
   params: {
-    environmentName: environmentName
+    environmentName: containerAppEnvironmentName
     location: location
     tags: tags
   }
@@ -203,17 +202,6 @@ DATABASE (PostgreSQL Flexible Server):
 📦 Database: ${postgresql.outputs.databaseName}
 🔐 Connection: Use DATABASE_URL secret in backend
 
-EMAIL SERVICES (Azure Communication Services):
-📧 Sender Email: ${communicationServices.outputs.senderEmail} (placeholder)
-🔗 Service: ${communicationServices.outputs.communicationServiceName}
-💵 Cost: ~$0.00025 per email sent
-
-⚠️  POST-DEPLOYMENT REQUIRED:
-Configure ACS connection string and sender email:
-1. See docs/GET_SENDER_EMAIL.md for instructions
-2. Run: az containerapp update to set ACS_CONNECTION_STRING
-3. Get real sender email from Azure Portal
-
 Container Registry: ${acr.outputs.acrLoginServer}
 
 To deploy backend:
@@ -221,4 +209,6 @@ To deploy backend:
 2. docker push ${acr.outputs.acrLoginServer}/api:latest
 
 Frontend deploys automatically via GitHub Actions!
+
+⚠️  NOTE: Azure Communication Services will be added in a separate deployment.
 '''
