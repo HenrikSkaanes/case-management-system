@@ -60,7 +60,7 @@ jobs:
           echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
           echo "postgresqlServerFqdn=$(echo $output | jq -r '.postgresqlServerFqdn.value')" >> $GITHUB_OUTPUT
-          echo "acsServiceName=$(echo $output | jq -r '.acsServiceName.value')" >> $GITHUB_OUTPUT
+          # echo "acsServiceName=$(echo $output | jq -r '.acsServiceName.value')" >> $GITHUB_OUTPUT  # ACS temporarily disabled
           
           echo "✅ Infrastructure deployed successfully!"
 
@@ -81,7 +81,7 @@ jobs:
           export RESOURCE_GROUP="${{ env.AZURE_RESOURCE_GROUP }}"
           export ENVIRONMENT_NAME="casemanagement-env-dev"
           export LOG_ANALYTICS_NAME="casemanagement-logs-dev"
-          export ACS_SERVICE_NAME="${{ steps.deploy.outputs.acsServiceName }}"
+          # export ACS_SERVICE_NAME="${{ steps.deploy.outputs.acsServiceName }}"  # ACS temporarily disabled
           
           ./infra/scripts/configure-post-deployment.sh
 

@@ -109,6 +109,8 @@ module postgresql 'modules/postgresql.bicep' = {
 }
 
 // 5. Azure Communication Services (email capabilities)
+// TEMPORARILY DISABLED to isolate deployment error
+/*
 module communicationServices 'modules/communication-services.bicep' = {
   name: 'communication-services-deployment'
   params: {
@@ -120,6 +122,7 @@ module communicationServices 'modules/communication-services.bicep' = {
     tags: tags
   }
 }
+*/
 
 // 6. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
@@ -139,7 +142,7 @@ module apiApp 'modules/app.bicep' = {
     maxReplicas: 5  // Can scale higher now
     databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
     acsConnectionString: ''  // Will be configured via Azure CLI after deployment (see docs/GET_SENDER_EMAIL.md)
-    acsSenderEmail: communicationServices.outputs.senderEmail
+    acsSenderEmail: 'placeholder@example.com'  // communicationServices.outputs.senderEmail
     companyName: 'Wrangler Tax Services'
     tags: tags
   }
@@ -175,9 +178,12 @@ output postgresqlServerFqdn string = postgresql.outputs.serverFqdn
 output postgresqlDatabaseName string = postgresql.outputs.databaseName
 
 // Azure Communication Services outputs
+// TEMPORARILY DISABLED
+/*
 output acsServiceName string = communicationServices.outputs.communicationServiceName
 output acsServiceId string = communicationServices.outputs.communicationServiceId
 output acsSenderEmail string = communicationServices.outputs.senderEmail
+*/
 
 // Deployment summary message
 output deploymentMessage string = '''
