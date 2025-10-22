@@ -1,0 +1,157 @@
+.ticket-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  transition: all 0.2s ease;
+  border-left: 4px solid #e0e0e0;
+}
+
+.ticket-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.ticket-card:active {
+  cursor: grabbing;
+}
+
+.ticket-card.priority-high {
+  border-left-color: #d32f2f;
+}
+
+.ticket-card.priority-medium {
+  border-left-color: #f57c00;
+}
+
+.ticket-card.priority-low {
+  border-left-color: #388e3c;
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ticket-id {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+.ticket-priority {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ticket-priority.priority-high {
+  color: #d32f2f;
+}
+
+.ticket-priority.priority-medium {
+  color: #f57c00;
+}
+
+.ticket-priority.priority-low {
+  color: #388e3c;
+}
+
+.ticket-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+.ticket-category {
+  margin-top: 8px;
+}
+
+.category-badge {
+  display: inline-block;
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ticket-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ticket-description {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.ticket-meta {
+  margin: 8px 0;
+}
+
+.ticket-meta small {
+  color: #888;
+  font-size: 11px;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-edit,
+.btn-delete {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.btn-edit:hover {
+  background: #bbdefb;
+}
+
+.btn-delete {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.btn-delete:hover {
+  background: #ffcdd2;
+}
