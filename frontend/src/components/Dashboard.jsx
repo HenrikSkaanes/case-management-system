@@ -89,6 +89,23 @@ function Dashboard() {
     setEditingTicket(null)
   }
 
+  const handleRespond = async (ticketId, responseData) => {
+    // For now, we'll just log it. In a real app, you'd call an API endpoint
+    // that sends an email to the customer
+    console.log('Sending response:', responseData);
+    
+    // TODO: Implement backend endpoint to send email
+    // await sendEmailResponse(ticketId, responseData);
+    
+    // Simulate API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log(`Email sent to ${responseData.customer_email}`);
+        resolve();
+      }, 1000);
+    });
+  }
+
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ticket.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -261,6 +278,7 @@ function Dashboard() {
             onUpdateTicket={handleUpdateTicket}
             onEditTicket={handleEditTicket}
             onDeleteTicket={handleDeleteTicket}
+            onRespond={handleRespond}
           />
           <KanbanColumn
             status="in_progress"
@@ -270,6 +288,7 @@ function Dashboard() {
             onUpdateTicket={handleUpdateTicket}
             onEditTicket={handleEditTicket}
             onDeleteTicket={handleDeleteTicket}
+            onRespond={handleRespond}
           />
           <KanbanColumn
             status="resolved"
@@ -279,6 +298,7 @@ function Dashboard() {
             onUpdateTicket={handleUpdateTicket}
             onEditTicket={handleEditTicket}
             onDeleteTicket={handleDeleteTicket}
+            onRespond={handleRespond}
           />
         </main>
       ) : (

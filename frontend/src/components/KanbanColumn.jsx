@@ -8,7 +8,7 @@ import './KanbanColumn.css';
  * Displays tickets for a specific status (new, in_progress, done)
  * Handles drop events to update ticket status
  */
-const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, icon }) => {
+const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, onRespond, icon }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = (e) => {
@@ -36,6 +36,7 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
         return 'status-new';
       case 'in_progress':
         return 'status-progress';
+      case 'resolved':
       case 'done':
         return 'status-done';
       default:
@@ -71,6 +72,7 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
               ticket={ticket}
               onEdit={onEditTicket}
               onDelete={onDeleteTicket}
+              onRespond={onRespond}
             />
           ))
         )}

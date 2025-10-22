@@ -172,6 +172,12 @@
   transform: translateY(-4px);
 }
 
+/* Prevent submit case card from turning white on hover */
+.submit-case-card:hover {
+  background: linear-gradient(135deg, #0078D4, #00BCF2) !important;
+  border-color: transparent !important;
+}
+
 .card-icon {
   width: 48px;
   height: 48px;
