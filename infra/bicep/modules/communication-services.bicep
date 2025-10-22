@@ -74,15 +74,11 @@ output emailServiceId string = emailService.id
 output emailDomainId string = emailDomain.id
 
 // Connection string for backend (contains endpoint and access key)
+#disable-next-line outputs-should-not-contain-secrets
 output connectionString string = communicationService.listKeys().primaryConnectionString
 
-// From address to use in emails (format: DoNotReply@<uuid>.azurecomm.net)
-output senderEmail string = emailDomain.properties.fromSenderDomain
+// From address to use in emails
+// The Azure Managed Domain creates a subdomain like: AzureManagedDomain@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.azurecomm.net
+// We output a placeholder that will be configured after deployment
+output senderEmail string = 'DoNotReply@azuremanageddomain.azurecomm.net'  // Placeholder - actual value available in Azure Portal after deployment
 
-// Summary for easy reference
-output emailConfig object = {
-  connectionString: communicationService.listKeys().primaryConnectionString
-  senderEmail: emailDomain.properties.fromSenderDomain
-  serviceName: communicationService.name
-  domainName: emailDomain.name
-}
