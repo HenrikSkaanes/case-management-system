@@ -27,4 +27,5 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 output logAnalyticsId string = logAnalytics.id
 output logAnalyticsName string = logAnalytics.name
 output customerId string = logAnalytics.properties.customerId
-output sharedKey string = logAnalytics.listKeys().primarySharedKey
+// Note: Shared key NOT output to avoid "content already consumed" error
+// Environment module will call listKeys() directly on existing resource

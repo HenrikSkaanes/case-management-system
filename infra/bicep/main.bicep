@@ -79,17 +79,20 @@ module logs 'modules/logs.bicep' = {
   }
 }
 
-// 3. Container App Environment (runtime infrastructure for backend)
+// Create Container App Environment
 module environment 'modules/environment.bicep' = {
   name: 'environment-deployment'
   params: {
-    environmentName: environmentResourceName
+    environmentName: environmentName
     location: location
     logAnalyticsId: logs.outputs.logAnalyticsId
     logAnalyticsCustomerId: logs.outputs.customerId
-    logAnalyticsSharedKey: logs.outputs.sharedKey
+    logAnalyticsWorkspaceName: logs.outputs.logAnalyticsName
     tags: tags
   }
+  dependsOn: [
+    logs
+  ]
 }
 
 // 4. PostgreSQL Database (persistent storage)
