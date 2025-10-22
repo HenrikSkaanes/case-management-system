@@ -169,6 +169,8 @@ output acrLoginServer string = acr.outputs.acrLoginServer
 output acrName string = acr.outputs.acrName
 output apiAppName string = apiApp.outputs.appName
 output staticWebAppName string = staticWebApp.outputs.staticWebAppName
+output logAnalyticsName string = logs.outputs.logAnalyticsName
+output containerAppEnvironmentName string = environment.outputs.environmentName
 // Note: deploymentToken NOT output - retrieve via Azure CLI to avoid "content already consumed" error
 output resourceGroupName string = resourceGroup().name
 

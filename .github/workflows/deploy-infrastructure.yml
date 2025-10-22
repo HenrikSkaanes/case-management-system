@@ -60,6 +60,8 @@ jobs:
           echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
           echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
           echo "postgresqlServerFqdn=$(echo $output | jq -r '.postgresqlServerFqdn.value')" >> $GITHUB_OUTPUT
+          echo "logAnalyticsName=$(echo $output | jq -r '.logAnalyticsName.value')" >> $GITHUB_OUTPUT
+          echo "containerAppEnvironmentName=$(echo $output | jq -r '.containerAppEnvironmentName.value')" >> $GITHUB_OUTPUT
           # echo "acsServiceName=$(echo $output | jq -r '.acsServiceName.value')" >> $GITHUB_OUTPUT  # ACS temporarily disabled
           
           echo "✅ Infrastructure deployed successfully!"
@@ -77,10 +79,10 @@ jobs:
 
       - name: Post-Deployment Configuration
         run: |
-          # Configure Log Analytics and retrieve secrets
+          # Configure Log Analytics using dynamic resource names from deployment outputs
           export RESOURCE_GROUP="${{ env.AZURE_RESOURCE_GROUP }}"
-          export ENVIRONMENT_NAME="casemanagement-env-dev"
-          export LOG_ANALYTICS_NAME="casemanagement-logs-dev"
+          export LOG_ANALYTICS_NAME="${{ steps.deploy.outputs.logAnalyticsName }}"
+          export CONTAINER_APP_ENV_NAME="${{ steps.deploy.outputs.containerAppEnvironmentName }}"
           # export ACS_SERVICE_NAME="${{ steps.deploy.outputs.acsServiceName }}"  # ACS temporarily disabled
           
           ./infra/scripts/configure-post-deployment.sh
