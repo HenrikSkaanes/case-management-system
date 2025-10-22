@@ -121,14 +121,6 @@ module communicationServices 'modules/communication-services.bicep' = {
   }
 }
 
-// Reference the ACS resource to get connection string
-resource acsResource 'Microsoft.Communication/communicationServices@2023-04-01' existing = {
-  name: communicationServicesName
-  dependsOn: [
-    communicationServices
-  ]
-}
-
 // 6. Container App (Backend API only - NO frontend)
 module apiApp 'modules/app.bicep' = {
   name: 'api-app-deployment'
@@ -145,7 +137,7 @@ module apiApp 'modules/app.bicep' = {
     minReplicas: 1
     maxReplicas: 5  // Can scale higher now
     databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
-    acsConnectionString: acsResource.listKeys().primaryConnectionString
+    acsConnectionString: ''  // Will be configured via Azure CLI after deployment (see docs/GET_SENDER_EMAIL.md)
     acsSenderEmail: communicationServices.outputs.senderEmail
     companyName: 'Wrangler Tax Services'
     tags: tags
@@ -183,10 +175,9 @@ output postgresqlDatabaseName string = postgresql.outputs.databaseName
 output databaseConnectionString string = 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
 
 // Azure Communication Services outputs
-#disable-next-line outputs-should-not-contain-secrets
-output acsConnectionString string = acsResource.listKeys().primaryConnectionString
-output acsSenderEmail string = communicationServices.outputs.senderEmail
 output acsServiceName string = communicationServices.outputs.communicationServiceName
+output acsServiceId string = communicationServices.outputs.communicationServiceId
+output acsSenderEmail string = communicationServices.outputs.senderEmail
 
 // Deployment summary message
 output deploymentMessage string = '''
@@ -207,9 +198,15 @@ DATABASE (PostgreSQL Flexible Server):
 🔐 Connection: Use DATABASE_URL secret in backend
 
 EMAIL SERVICES (Azure Communication Services):
-📧 Sender Email: ${communicationServices.outputs.senderEmail}
+📧 Sender Email: ${communicationServices.outputs.senderEmail} (placeholder)
 🔗 Service: ${communicationServices.outputs.communicationServiceName}
 💵 Cost: ~$0.00025 per email sent
+
+⚠️  POST-DEPLOYMENT REQUIRED:
+Configure ACS connection string and sender email:
+1. See docs/GET_SENDER_EMAIL.md for instructions
+2. Run: az containerapp update to set ACS_CONNECTION_STRING
+3. Get real sender email from Azure Portal
 
 Container Registry: ${acr.outputs.acrLoginServer}
 
