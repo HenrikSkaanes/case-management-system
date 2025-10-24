@@ -103,6 +103,7 @@ resource postgresqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-
     network: {
       delegatedSubnetResourceId: subnetId
       privateDnsZoneArmResourceId: privateDnsZone.id
+      publicNetworkAccess: 'Disabled' // Explicitly disable public access for private networking
     }
     // Enable Azure AD authentication
     authConfig: {
