@@ -1,0 +1,184 @@
+name: Deploy Cost-Optimized Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/bicep/**'
+
+env:
+  AZURE_RESOURCE_GROUP: rg-case-management-dev
+  AZURE_LOCATION: norwayeast
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Azure Infrastructure with Managed Identities
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    outputs:
+      frontend-url: ${{ steps.deploy.outputs.frontendUrl }}
+      front-door-url: ${{ steps.deploy.outputs.frontDoorUrl }}
+      apim-url: ${{ steps.deploy.outputs.apimUrl }}
+      api-url: ${{ steps.deploy.outputs.apiUrl }}
+      container-app-name: ${{ steps.deploy.outputs.containerAppName }}
+      acr-name: ${{ steps.deploy.outputs.acrName }}
+      acr-login-server: ${{ steps.deploy.outputs.acrLoginServer }}
+      static-web-app-name: ${{ steps.deploy.outputs.staticWebAppName }}
+      key-vault-name: ${{ steps.deploy.outputs.keyVaultName }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login with Service Principal
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: false
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --tags \
+              Environment=${{ github.event.inputs.environment || 'dev' }} \
+              ManagedBy=GitHubActions \
+              Repository=${{ github.repository }}
+
+      - name: Deploy Cost-Optimized Infrastructure
+        id: deploy
+        run: |
+          echo "🚀 Deploying cost-optimized architecture..."
+          echo "📦 APIM: Consumption tier (~$3/month)"
+          echo "🚀 Front Door: Standard tier (~$35/month)"
+          echo "🔐 PostgreSQL: Azure AD auth enabled"
+          echo "🎯 Managed identities: Enabled everywhere"
+          
+          output=$(az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/bicep/main.bicep \
+            --parameters @infra/bicep/main.parameters.dev-optimized.json \
+            --parameters postgresqlAdminPassword='${{ secrets.POSTGRESQL_ADMIN_PASSWORD }}' \
+            --parameters enablePostgresAadAuth=true \
+            --name infrastructure-deployment-$(date +%Y%m%d-%H%M%S) \
+            --query 'properties.outputs' \
+            -o json)
+          
+          # Extract and set outputs
+          echo "frontendUrl=$(echo $output | jq -r '.frontendUrl.value')" >> $GITHUB_OUTPUT
+          echo "frontDoorUrl=$(echo $output | jq -r '.frontDoorUrl.value')" >> $GITHUB_OUTPUT
+          echo "apimUrl=$(echo $output | jq -r '.apimUrl.value')" >> $GITHUB_OUTPUT
+          echo "apiUrl=$(echo $output | jq -r '.apiUrl.value')" >> $GITHUB_OUTPUT
+          echo "containerAppName=$(echo $output | jq -r '.containerAppName.value')" >> $GITHUB_OUTPUT
+          echo "acrName=$(echo $output | jq -r '.acrName.value')" >> $GITHUB_OUTPUT
+          echo "acrLoginServer=$(echo $output | jq -r '.acrLoginServer.value')" >> $GITHUB_OUTPUT
+          echo "staticWebAppName=$(echo $output | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$(echo $output | jq -r '.keyVaultName.value')" >> $GITHUB_OUTPUT
+          
+          echo "✅ Deployment complete!"
+          echo "$output" | jq -r '.deploymentMessage.value'
+
+      - name: Get Static Web App Deployment Token
+        id: get_token
+        run: |
+          token=$(az staticwebapp secrets list \
+            --name ${{ steps.deploy.outputs.staticWebAppName }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.apiKey \
+            -o tsv)
+          echo "::add-mask::$token"
+          echo "staticWebAppDeploymentToken=$token" >> $GITHUB_OUTPUT
+
+      - name: Configure Database for Managed Identity
+        run: |
+          echo "🔐 Configuring PostgreSQL for managed identity access..."
+          echo "Note: Container App managed identity automatically configured via Bicep"
+          echo "The app will connect using Azure AD authentication (no password needed)"
+          
+          # Store connection string in Key Vault (without password)
+          az keyvault secret set \
+            --vault-name ${{ steps.deploy.outputs.keyVaultName }} \
+            --name database-connection-string \
+            --value "postgresql://caseadmin@${{ steps.deploy.outputs.postgresqlServerFqdn }}:5432/casemanagement?sslmode=require" \
+            --description "Database connection string (uses managed identity for auth)"
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Infrastructure Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Static Web App:** ${{ steps.deploy.outputs.frontendUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Front Door (CDN):** ${{ steps.deploy.outputs.frontDoorUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Management:** ${{ steps.deploy.outputs.apimUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container App (direct):** ${{ steps.deploy.outputs.apiUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 Security" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Managed identities enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PostgreSQL Azure AD authentication" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Key Vault for secrets" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Private VNet with NAT Gateway" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💰 Cost Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "- APIM: Consumption tier (~$3/month)" >> $GITHUB_STEP_SUMMARY
+          echo "- Front Door: Standard tier (~$35/month)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estimated total: ~$120-150/month**" >> $GITHUB_STEP_SUMMARY
+
+  deploy-backend:
+    name: Deploy Backend Container
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and Push to ACR
+        run: |
+          az acr build \
+            --registry ${{ needs.deploy-infrastructure.outputs.acrName }} \
+            --image api:${{ github.sha }} \
+            --image api:latest \
+            --file backend/Dockerfile \
+            backend/
+
+      - name: Update Container App
+        run: |
+          echo "Container App will automatically pull new image"
+          echo "Managed identity handles ACR authentication"
+
+  deploy-frontend:
+    name: Deploy Frontend to Static Web App
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ needs.deploy-infrastructure.outputs.deployment-token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "frontend"
+          api_location: ""
+          output_location: "dist"

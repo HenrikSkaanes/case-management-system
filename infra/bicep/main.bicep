@@ -31,6 +31,51 @@ param imageTag string = 'latest'
 @secure()
 param postgresqlAdminPassword string
 
+@description('Enable Azure AD authentication for PostgreSQL')
+param enablePostgresAadAuth bool = true
+
+// ============================================
+// NETWORKING & SECURITY PARAMETERS
+// ============================================
+
+@description('Allowed CORS origin for API (typically SWA hostname)')
+param allowedCorsOrigin string = ''
+
+@description('Resource group name for DNS zone (if different from deployment RG)')
+param dnsZoneResourceGroupName string = ''
+
+@description('VNet address prefix')
+param vnetAddressPrefix string = '10.10.0.0/16'
+
+@description('Container Apps control plane subnet prefix')
+param subnetAcaControlPrefix string = '10.10.1.0/24'
+
+@description('Container Apps runtime subnet prefix')
+param subnetAcaRuntimePrefix string = '10.10.2.0/24'
+
+@description('PostgreSQL delegated subnet prefix')
+param subnetPostgresPrefix string = '10.10.3.0/24'
+
+@description('API Management SKU (Developer, Basic, Standard, Premium, Consumption)')
+@allowed([
+  'Consumption'
+  'Developer'
+  'Basic'
+  'Standard'
+  'Premium'
+])
+param apimSkuName string = 'Consumption'
+
+@description('Azure Front Door SKU (Standard or Premium)')
+@allowed([
+  'Standard_AzureFrontDoor'
+  'Premium_AzureFrontDoor'
+])
+param frontDoorSkuName string = 'Standard_AzureFrontDoor'
+
+@description('Optional custom domain for Azure Front Door (e.g., app.example.com)')
+param frontDoorCustomDomain string = ''
+
 // ============================================
 // VARIABLES
 // ============================================
@@ -56,7 +101,21 @@ var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName
 // MODULES
 // ============================================
 
-// 1. Container Registry (stores Docker images)
+// 1. Networking (VNet, Subnets, NAT Gateway) - Foundation layer
+module networking 'modules/networking.bicep' = {
+  name: 'networking-deployment'
+  params: {
+    vnetName: 'vnet-${resourceSuffix}'
+    location: location
+    vnetAddressPrefix: vnetAddressPrefix
+    subnetAcaControlPrefix: subnetAcaControlPrefix
+    subnetAcaRuntimePrefix: subnetAcaRuntimePrefix
+    subnetPostgresPrefix: subnetPostgresPrefix
+    tags: tags
+  }
+}
+
+// 2. Container Registry (stores Docker images) - Parallel with Networking
 module acr 'modules/acr.bicep' = {
   name: 'acr-deployment'
   params: {
@@ -67,7 +126,7 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
-// 2. Log Analytics (monitoring and logs)
+// 3. Log Analytics (monitoring and logs) - Parallel with Networking
 module logs 'modules/logs.bicep' = {
   name: 'logs-deployment'
   params: {
@@ -77,22 +136,24 @@ module logs 'modules/logs.bicep' = {
   }
 }
 
-// Create Container App Environment
-module environment 'modules/environment.bicep' = {
-  name: 'environment-deployment'
+// 4. Key Vault (secrets management) - After Networking (but before apps need it)
+module keyVault 'modules/keyvault.bicep' = {
+  name: 'keyvault-deployment'
   params: {
-    environmentName: containerAppEnvironmentName
+    keyVaultName: 'kv-${replace(baseName, '-', '')}${environmentName}'  // KV names can't have dashes
     location: location
+    principalId: ''  // Will be set in second deployment after Container App is created
+    enableRbacAuthorization: true
     tags: tags
   }
   dependsOn: [
-    logs
+    networking
   ]
 }
 
-// 4. PostgreSQL Database (persistent storage)
-module postgresql 'modules/postgresql.bicep' = {
-  name: 'postgresql-deployment'
+// 5. PostgreSQL Private (database with private access) - After Networking
+module postgresqlPrivate 'modules/postgres-private.bicep' = {
+  name: 'postgresql-private-deployment'
   params: {
     serverName: postgresqlServerName
     location: location
@@ -101,116 +162,233 @@ module postgresql 'modules/postgresql.bicep' = {
     databaseName: 'casemanagement'
     postgresqlVersion: '16'
     skuTier: 'Burstable'
-    skuName: 'Standard_B1ms'  // ~$25/month
+    skuName: 'Standard_B1ms'  // ~$25/month (can use B1s for ~$12/month)
     storageSizeGB: 32
+    subnetId: networking.outputs.subnetPostgresId
+    vnetId: networking.outputs.vnetId
+    dnsZoneResourceGroupName: dnsZoneResourceGroupName != '' ? dnsZoneResourceGroupName : resourceGroup().name
+    enableAadAuth: enablePostgresAadAuth
+    aadAdminPrincipalId: '' // Will be set after Container App is created
+    aadAdminPrincipalName: ''
+    aadAdminPrincipalType: 'ServicePrincipal'
     tags: tags
   }
+  dependsOn: [
+    networking
+  ]
 }
 
-// 5. Azure Communication Services (email capabilities)
-// TEMPORARILY DISABLED to isolate deployment error
-/*
-module communicationServices 'modules/communication-services.bicep' = {
-  name: 'communication-services-deployment'
+// 6. Container Apps Environment with VNet Injection - After Networking + Logs
+module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
+  name: 'containerapps-env-deployment'
   params: {
-    communicationServicesName: communicationServicesName
-    emailServiceName: emailServiceName
-    location: 'global'
-    emailServiceLocation: 'westeurope'  // Closest to Norway
-    domainName: 'AzureManagedDomain'  // Free managed domain
-    tags: tags
-  }
-}
-*/
-
-// 6. Container App (Backend API only - NO frontend)
-module apiApp 'modules/app.bicep' = {
-  name: 'api-app-deployment'
-  params: {
+    environmentName: containerAppEnvironmentName
     appName: apiAppName
     location: location
-    environmentId: environment.outputs.environmentId
-    acrLoginServer: acr.outputs.acrLoginServer
-    imageName: 'api:${imageTag}'
-    usePublicImage: true // Use placeholder on first deploy
-  acrUsername: ''
-  acrPassword: ''
-    cpu: '0.25'  // Smaller since no frontend
-    memory: '0.5Gi'  // Smaller since no frontend
+    logAnalyticsWorkspaceId: logs.outputs.logAnalyticsId
+    logAnalyticsCustomerId: logs.outputs.customerId
+    subnetAcaControlId: networking.outputs.subnetAcaControlId
+    subnetAcaRuntimeId: networking.outputs.subnetAcaRuntimeId
+    containerImage: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder
+    containerRegistryServer: acr.outputs.acrLoginServer
+    containerRegistryUsername: ''
+    containerRegistryPassword: ''
+    cpu: '0.5'
+    memory: '1.0Gi'
     minReplicas: 1
-    maxReplicas: 5  // Can scale higher now
-    databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresql.outputs.serverFqdn}:5432/${postgresql.outputs.databaseName}?sslmode=require'
-    acsConnectionString: ''  // Will be configured via Azure CLI after deployment (see docs/GET_SENDER_EMAIL.md)
-    acsSenderEmail: 'placeholder@example.com'  // communicationServices.outputs.senderEmail
-    companyName: 'Wrangler Tax Services'
+    maxReplicas: 5
+    databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresqlPrivate.outputs.serverFqdn}:5432/${postgresqlPrivate.outputs.databaseName}?sslmode=require'
+    allowedCorsOrigin: allowedCorsOrigin != '' ? allowedCorsOrigin : ''  // Will be set to SWA hostname after deployment
+    apimEgressIps: ''  // TODO: Set after APIM is deployed
     tags: tags
   }
+  dependsOn: [
+    networking
+    logs
+    acr
+    postgresqlPrivate
+  ]
 }
 
-// 7. Static Web App (Frontend on CDN)
+// 7. Static Web App (Frontend on CDN) - Can deploy early, will point to APIM later
 module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
     staticWebAppName: staticWebAppName
     location: staticWebAppLocation
     sku: 'Free'  // Free tier is perfect for this!
-    apiUrl: 'https://${apiApp.outputs.fqdn}/api'  // Point frontend to backend API
+    apiUrl: 'https://placeholder-will-be-updated-to-apim-url.azurewebsites.net/api'  // Will be updated after APIM deployment
     tags: tags
   }
+}
+
+// 8. API Management (external API façade) - After Container Apps
+module apiManagement 'modules/apim.bicep' = {
+  name: 'apim-deployment'
+  params: {
+    apimName: 'apim-${resourceSuffix}'
+    location: location
+    skuName: apimSkuName
+    backendApiFqdn: containerAppsEnv.outputs.apiFqdn
+    allowedCorsOrigin: staticWebApp.outputs.defaultHostname  // Use SWA hostname for CORS
+    tags: tags
+  }
+  dependsOn: [
+    containerAppsEnv
+    staticWebApp  // Need SWA hostname for CORS
+  ]
+}
+
+// 9. Azure Front Door with WAF (global CDN + security) - After SWA + APIM
+module frontDoor 'modules/frontdoor-waf.bicep' = {
+  name: 'frontdoor-deployment'
+  params: {
+    resourceSuffix: resourceSuffix
+    location: 'global'
+    staticWebAppHostname: staticWebApp.outputs.defaultHostname
+    apimHostname: apiManagement.outputs.gatewayHostname
+    customDomain: frontDoorCustomDomain
+    skuName: frontDoorSkuName
+    tags: tags
+  }
+  dependsOn: [
+    staticWebApp
+    apiManagement
+  ]
+}
+
+// 10. Update Key Vault with Container App managed identity (separate deployment)
+// Note: This is a second deployment of Key Vault to grant the Container App access
+module keyVaultRoleAssignment 'modules/keyvault.bicep' = {
+  name: 'keyvault-role-assignment'
+  params: {
+    keyVaultName: 'kv-${replace(baseName, '-', '')}${environmentName}'
+    location: location
+    principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
+    enableRbacAuthorization: true
+    tags: tags
+  }
+  dependsOn: [
+    keyVault
+    containerAppsEnv
+  ]
+}
+
+// 11. Grant Container App managed identity access to PostgreSQL
+module postgresqlAadConfig 'modules/postgres-private.bicep' = {
+  name: 'postgresql-aad-config'
+  params: {
+    serverName: postgresqlServerName
+    location: location
+    adminUsername: 'caseadmin'
+    adminPassword: postgresqlAdminPassword
+    databaseName: 'casemanagement'
+    postgresqlVersion: '16'
+    skuTier: 'Burstable'
+    skuName: 'Standard_B1ms'
+    storageSizeGB: 32
+    subnetId: networking.outputs.subnetPostgresId
+    vnetId: networking.outputs.vnetId
+    dnsZoneResourceGroupName: dnsZoneResourceGroupName != '' ? dnsZoneResourceGroupName : resourceGroup().name
+    enableAadAuth: enablePostgresAadAuth
+    aadAdminPrincipalId: containerAppsEnv.outputs.managedIdentityPrincipalId
+    aadAdminPrincipalName: containerAppsEnv.outputs.appName
+    aadAdminPrincipalType: 'ServicePrincipal'
+    tags: tags
+  }
+  dependsOn: [
+    postgresqlPrivate
+    containerAppsEnv
+  ]
 }
 
 // ============================================
 // OUTPUTS
 // ============================================
 
+// Frontend URLs
 output frontendUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
-output apiUrl string = 'https://${apiApp.outputs.fqdn}'
+output frontDoorUrl string = frontDoor.outputs.frontDoorEndpointUrl
+output customDomainUrl string = frontDoorCustomDomain != '' ? 'https://${frontDoorCustomDomain}' : ''
+
+// Backend URLs
+output apiUrl string = containerAppsEnv.outputs.apiUrl
+output apimUrl string = apiManagement.outputs.apiUrl
+output apiFqdn string = containerAppsEnv.outputs.apiFqdn
+output apimGatewayHostname string = apiManagement.outputs.gatewayHostname
+
+// Container Registry
 output acrLoginServer string = acr.outputs.acrLoginServer
 output acrName string = acr.outputs.acrName
-output apiAppName string = apiApp.outputs.appName
+
+// App Names
+output containerAppName string = containerAppsEnv.outputs.appName
 output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output logAnalyticsName string = logs.outputs.logAnalyticsName
-output containerAppEnvironmentName string = environment.outputs.environmentName
-// Note: deploymentToken NOT output - retrieve via Azure CLI to avoid "content already consumed" error
+output containerAppEnvironmentName string = containerAppsEnv.outputs.environmentName
+
+// Resource Group
 output resourceGroupName string = resourceGroup().name
 
-// PostgreSQL outputs
-output postgresqlServerFqdn string = postgresql.outputs.serverFqdn
-output postgresqlDatabaseName string = postgresql.outputs.databaseName
+// PostgreSQL
+output postgresqlServerFqdn string = postgresqlPrivate.outputs.serverFqdn
+output postgresqlDatabaseName string = postgresqlPrivate.outputs.databaseName
+output postgresqlPrivateDnsZone string = postgresqlPrivate.outputs.privateDnsZoneName
 
-// Azure Communication Services outputs
-// TEMPORARILY DISABLED
-/*
-output acsServiceName string = communicationServices.outputs.communicationServiceName
-output acsServiceId string = communicationServices.outputs.communicationServiceId
-output acsSenderEmail string = communicationServices.outputs.senderEmail
-*/
+// Key Vault
+output keyVaultName string = keyVault.outputs.keyVaultName
+output keyVaultUri string = keyVault.outputs.keyVaultUri
+
+// Networking
+output vnetName string = networking.outputs.vnetName
+output natPublicIp string = networking.outputs.natPublicIp
+
+// Managed Identities
+output containerAppManagedIdentityPrincipalId string = containerAppsEnv.outputs.managedIdentityPrincipalId
+output apimManagedIdentityPrincipalId string = apiManagement.outputs.managedIdentityPrincipalId
+
+// WAF
+output wafPolicyId string = frontDoor.outputs.wafPolicyId
+
+// Custom Domain Validation (if applicable)
+output customDomainValidationToken string = frontDoorCustomDomain != '' ? frontDoor.outputs.customDomainValidationToken : ''
 
 // Deployment summary message
 output deploymentMessage string = '''
-🎉 Deployment Complete!
+🎉 Deployment Complete - Production-Ready Architecture!
 
-FRONTEND (Static Web App - on Global CDN):
-🌐 URL: https://${staticWebApp.outputs.defaultHostname}
-📦 Deploy via GitHub Actions with deployment token
+FRONTEND ACCESS:
+🌐 Static Web App: https://${staticWebApp.outputs.defaultHostname}
+� Front Door (CDN + WAF): ${frontDoor.outputs.frontDoorEndpointUrl}
+${frontDoorCustomDomain != '' ? '🎯 Custom Domain: https://${frontDoorCustomDomain}' : ''}
 
-BACKEND (Container App API):
-🔗 API URL: https://${apiApp.outputs.fqdn}
-📊 API Docs: https://${apiApp.outputs.fqdn}/docs
-🏥 Health: https://${apiApp.outputs.fqdn}/health
+BACKEND ACCESS:
+🔗 Container App (direct): ${containerAppsEnv.outputs.apiUrl}
+�️  API Management (secured): ${apiManagement.outputs.apiUrl}
+📊 API Docs: ${containerAppsEnv.outputs.apiUrl}/docs
 
-DATABASE (PostgreSQL Flexible Server):
-🗄️  Server: ${postgresql.outputs.serverFqdn}
-📦 Database: ${postgresql.outputs.databaseName}
-🔐 Connection: Use DATABASE_URL secret in backend
+INFRASTRUCTURE:
+� VNet: ${networking.outputs.vnetName}
+📤 NAT Gateway IP: ${networking.outputs.natPublicIp}
+🗄️  PostgreSQL (private): ${postgresqlPrivate.outputs.serverFqdn}
+� Key Vault: ${keyVault.outputs.keyVaultName}
+�️  WAF Policy: Enabled (OWASP + Bot Protection)
 
-Container Registry: ${acr.outputs.acrLoginServer}
+ARCHITECTURE FLOW:
+User → Front Door (WAF) → Static Web App (frontend)
+                         → APIM (rate limit + CORS) → Container App → PostgreSQL
 
-To deploy backend:
-1. docker build -t ${acr.outputs.acrLoginServer}/api:latest backend/
-2. docker push ${acr.outputs.acrLoginServer}/api:latest
+NEXT STEPS:
+1. Deploy backend: docker push ${acr.outputs.acrLoginServer}/api:latest
+2. Frontend auto-deploys via GitHub Actions
+${frontDoorCustomDomain != '' ? '3. Add CNAME record: ${frontDoorCustomDomain} → ${frontDoor.outputs.frontDoorEndpointHostname}\n4. Validation token: ${frontDoor.outputs.customDomainValidationToken}' : ''}
 
-Frontend deploys automatically via GitHub Actions!
-
-⚠️  NOTE: Azure Communication Services will be added in a separate deployment.
+🔒 Security Features:
+✅ VNet isolation with private endpoints
+✅ NAT Gateway for fixed egress IP
+✅ WAF with OWASP rules + bot protection
+✅ APIM rate limiting (100 req/min)
+✅ Private PostgreSQL (no public access)
+✅ Key Vault with RBAC + managed identities
+✅ HTTPS enforcement everywhere
 '''
