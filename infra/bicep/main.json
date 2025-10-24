@@ -1,0 +1,2648 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "1846868489151457632"
+    }
+  },
+  "parameters": {
+    "baseName": {
+      "type": "string",
+      "defaultValue": "casemanagement",
+      "metadata": {
+        "description": "Base name for all resources"
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": [
+        "dev",
+        "test",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment name (dev, test, prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for Container App resources"
+      }
+    },
+    "staticWebAppLocation": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "metadata": {
+        "description": "Location for Static Web App (limited regions)"
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Container image tag to deploy"
+      }
+    },
+    "postgresqlAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "PostgreSQL administrator password"
+      }
+    },
+    "enablePostgresAadAuth": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable Azure AD authentication for PostgreSQL"
+      }
+    },
+    "allowedCorsOrigin": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Allowed CORS origin for API (typically SWA hostname)"
+      }
+    },
+    "dnsZoneResourceGroupName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Resource group name for DNS zone (if different from deployment RG)"
+      }
+    },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.0.0/16",
+      "metadata": {
+        "description": "VNet address prefix"
+      }
+    },
+    "subnetAcaControlPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.1.0/24",
+      "metadata": {
+        "description": "Container Apps control plane subnet prefix"
+      }
+    },
+    "subnetAcaRuntimePrefix": {
+      "type": "string",
+      "defaultValue": "10.10.2.0/24",
+      "metadata": {
+        "description": "Container Apps runtime subnet prefix"
+      }
+    },
+    "subnetPostgresPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.3.0/24",
+      "metadata": {
+        "description": "PostgreSQL delegated subnet prefix"
+      }
+    },
+    "apimSkuName": {
+      "type": "string",
+      "defaultValue": "Consumption",
+      "allowedValues": [
+        "Consumption",
+        "Developer",
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "API Management SKU (Developer, Basic, Standard, Premium, Consumption)"
+      }
+    },
+    "frontDoorSkuName": {
+      "type": "string",
+      "defaultValue": "Standard_AzureFrontDoor",
+      "allowedValues": [
+        "Standard_AzureFrontDoor",
+        "Premium_AzureFrontDoor"
+      ],
+      "metadata": {
+        "description": "Azure Front Door SKU (Standard or Premium)"
+      }
+    },
+    "frontDoorCustomDomain": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional custom domain for Azure Front Door (e.g., app.example.com)"
+      }
+    }
+  },
+  "variables": {
+    "resourceSuffix": "[format('{0}-{1}', parameters('baseName'), parameters('environmentName'))]",
+    "tags": {
+      "Environment": "[parameters('environmentName')]",
+      "Application": "Case Management System",
+      "Architecture": "Static Web App + Container App API",
+      "ManagedBy": "Bicep",
+      "DeployedFrom": "GitHub Actions"
+    },
+    "acrName": "[format('acr{0}{1}', replace(parameters('baseName'), '-', ''), parameters('environmentName'))]",
+    "logAnalyticsName": "[format('log-{0}', variables('resourceSuffix'))]",
+    "containerAppEnvironmentName": "[format('cae-{0}', variables('resourceSuffix'))]",
+    "apiAppName": "[format('ca-api-{0}', variables('resourceSuffix'))]",
+    "staticWebAppName": "[format('stapp-{0}', variables('resourceSuffix'))]",
+    "postgresqlServerName": "[format('psql-{0}-{1}', replace(parameters('baseName'), '-', ''), parameters('environmentName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "networking-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vnetName": {
+            "value": "[format('vnet-{0}', variables('resourceSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vnetAddressPrefix": {
+            "value": "[parameters('vnetAddressPrefix')]"
+          },
+          "subnetAcaControlPrefix": {
+            "value": "[parameters('subnetAcaControlPrefix')]"
+          },
+          "subnetAcaRuntimePrefix": {
+            "value": "[parameters('subnetAcaRuntimePrefix')]"
+          },
+          "subnetPostgresPrefix": {
+            "value": "[parameters('subnetPostgresPrefix')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "8735366969067468898"
+            }
+          },
+          "parameters": {
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "vnetAddressPrefix": {
+              "type": "string",
+              "defaultValue": "10.10.0.0/16",
+              "metadata": {
+                "description": "VNet address prefix"
+              }
+            },
+            "subnetAcaControlPrefix": {
+              "type": "string",
+              "defaultValue": "10.10.1.0/24",
+              "metadata": {
+                "description": "Container Apps control plane subnet prefix"
+              }
+            },
+            "subnetAcaRuntimePrefix": {
+              "type": "string",
+              "defaultValue": "10.10.2.0/24",
+              "metadata": {
+                "description": "Container Apps runtime subnet prefix"
+              }
+            },
+            "subnetPostgresPrefix": {
+              "type": "string",
+              "defaultValue": "10.10.3.0/24",
+              "metadata": {
+                "description": "PostgreSQL delegated subnet prefix"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}-nat-pip', parameters('vnetName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+              }
+            },
+            {
+              "type": "Microsoft.Network/natGateways",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}-nat', parameters('vnetName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIpAddresses": [
+                  {
+                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-nat-pip', parameters('vnetName')))]"
+                  }
+                ],
+                "idleTimeoutInMinutes": 10
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-nat-pip', parameters('vnetName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-05-01",
+              "name": "[parameters('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('vnetAddressPrefix')]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "aca-control",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnetAcaControlPrefix')]",
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  },
+                  {
+                    "name": "aca-runtime",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnetAcaRuntimePrefix')]",
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled",
+                      "natGateway": {
+                        "id": "[resourceId('Microsoft.Network/natGateways', format('{0}-nat', parameters('vnetName')))]"
+                      }
+                    }
+                  },
+                  {
+                    "name": "postgres-delegated",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnetPostgresPrefix')]",
+                      "delegations": [
+                        {
+                          "name": "PostgreSQLFlexibleServerDelegation",
+                          "properties": {
+                            "serviceName": "Microsoft.DBforPostgreSQL/flexibleServers"
+                          }
+                        }
+                      ],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/natGateways', format('{0}-nat', parameters('vnetName')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+            },
+            "vnetName": {
+              "type": "string",
+              "value": "[parameters('vnetName')]"
+            },
+            "subnetAcaControlId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/aca-control', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')))]"
+            },
+            "subnetAcaRuntimeId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/aca-runtime', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')))]"
+            },
+            "subnetPostgresId": {
+              "type": "string",
+              "value": "[format('{0}/subnets/postgres-delegated', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')))]"
+            },
+            "natPublicIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}-nat-pip', parameters('vnetName'))), '2023-05-01').ipAddress]"
+            },
+            "natGatewayId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/natGateways', format('{0}-nat', parameters('vnetName')))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "acr-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "acrName": {
+            "value": "[variables('acrName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sku": {
+            "value": "Basic"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "1994543313735273411"
+            }
+          },
+          "parameters": {
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Container Registry"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for the registry"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Basic",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "SKU tier (Basic, Standard, Premium)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('acrName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "properties": {
+                "adminUserEnabled": true,
+                "publicNetworkAccess": "Enabled"
+              }
+            }
+          ],
+          "outputs": {
+            "acrLoginServer": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]"
+            },
+            "acrName": {
+              "type": "string",
+              "value": "[parameters('acrName')]"
+            },
+            "acrId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "logs-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "logAnalyticsName": {
+            "value": "[variables('logAnalyticsName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "2387235896627555655"
+            }
+          },
+          "parameters": {
+            "logAnalyticsName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Log Analytics workspace"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for the workspace"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            }
+          ],
+          "outputs": {
+            "logAnalyticsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+            },
+            "logAnalyticsName": {
+              "type": "string",
+              "value": "[parameters('logAnalyticsName')]"
+            },
+            "customerId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName')), '2023-09-01').customerId]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "keyvault-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[format('kv-{0}{1}', replace(parameters('baseName'), '-', ''), parameters('environmentName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "principalId": {
+            "value": ""
+          },
+          "enableRbacAuthorization": {
+            "value": true
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "18393449106657156007"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "principalId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Object ID of the principal (managed identity) that needs access"
+              }
+            },
+            "enableRbacAuthorization": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable RBAC authorization (recommended)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": "[parameters('enableRbacAuthorization')]",
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 90,
+                "enablePurgeProtection": true,
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "defaultAction": "Allow",
+                  "bypass": "AzureServices"
+                }
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('principalId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('principalId'), '4633458b-17de-408a-b874-0445c86b69e6')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[parameters('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "postgresql-private-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "serverName": {
+            "value": "[variables('postgresqlServerName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "caseadmin"
+          },
+          "adminPassword": {
+            "value": "[parameters('postgresqlAdminPassword')]"
+          },
+          "databaseName": {
+            "value": "casemanagement"
+          },
+          "postgresqlVersion": {
+            "value": "16"
+          },
+          "skuTier": {
+            "value": "Burstable"
+          },
+          "skuName": {
+            "value": "Standard_B1ms"
+          },
+          "storageSizeGB": {
+            "value": 32
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.subnetPostgresId.value]"
+          },
+          "vnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.vnetId.value]"
+          },
+          "dnsZoneResourceGroupName": "[if(not(equals(parameters('dnsZoneResourceGroupName'), '')), createObject('value', parameters('dnsZoneResourceGroupName')), createObject('value', resourceGroup().name))]",
+          "enableAadAuth": {
+            "value": "[parameters('enablePostgresAadAuth')]"
+          },
+          "aadAdminPrincipalId": {
+            "value": ""
+          },
+          "aadAdminPrincipalName": {
+            "value": ""
+          },
+          "aadAdminPrincipalType": {
+            "value": "ServicePrincipal"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5839693290322788455"
+            }
+          },
+          "parameters": {
+            "serverName": {
+              "type": "string",
+              "metadata": {
+                "description": "PostgreSQL server name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "postgresqlVersion": {
+              "type": "string",
+              "defaultValue": "16",
+              "metadata": {
+                "description": "PostgreSQL version"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Administrator username"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Administrator password"
+              }
+            },
+            "enableAadAuth": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable Azure AD authentication"
+              }
+            },
+            "aadAdminPrincipalId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure AD admin principal ID (user or service principal)"
+              }
+            },
+            "aadAdminPrincipalName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure AD admin principal name"
+              }
+            },
+            "aadAdminPrincipalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "metadata": {
+                "description": "Azure AD admin principal type (User, Group, ServicePrincipal)"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "Database name"
+              }
+            },
+            "skuTier": {
+              "type": "string",
+              "defaultValue": "Burstable",
+              "metadata": {
+                "description": "SKU tier (Burstable, GeneralPurpose, MemoryOptimized)"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Standard_B1ms",
+              "metadata": {
+                "description": "SKU name (Standard_B1ms, Standard_D2s_v3, etc.)"
+              }
+            },
+            "storageSizeGB": {
+              "type": "int",
+              "defaultValue": 32,
+              "metadata": {
+                "description": "Storage size in GB"
+              }
+            },
+            "subnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet ID for PostgreSQL delegation"
+              }
+            },
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet ID for Private DNS zone link"
+              }
+            },
+            "dnsZoneResourceGroupName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource group name for DNS zone (if different from deployment RG)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "variables": {
+            "dnsResourceGroup": "[if(empty(parameters('dnsZoneResourceGroupName')), resourceGroup().name, parameters('dnsZoneResourceGroupName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.postgres.database.azure.com",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.postgres.database.azure.com', format('{0}-vnet-link', parameters('serverName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[parameters('vnetId')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[parameters('serverName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuTier')]"
+              },
+              "properties": {
+                "version": "[parameters('postgresqlVersion')]",
+                "administratorLogin": "[parameters('adminUsername')]",
+                "administratorLoginPassword": "[parameters('adminPassword')]",
+                "storage": {
+                  "storageSizeGB": "[parameters('storageSizeGB')]",
+                  "autoGrow": "Enabled"
+                },
+                "backup": {
+                  "backupRetentionDays": 7,
+                  "geoRedundantBackup": "Disabled"
+                },
+                "highAvailability": {
+                  "mode": "Disabled"
+                },
+                "network": {
+                  "delegatedSubnetResourceId": "[parameters('subnetId')]",
+                  "privateDnsZoneArmResourceId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+                },
+                "authConfig": {
+                  "activeDirectoryAuth": "[if(parameters('enableAadAuth'), 'Enabled', 'Disabled')]",
+                  "passwordAuth": "Enabled",
+                  "tenantId": "[subscription().tenantId]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]",
+                "[resourceId('Microsoft.Network/privateDnsZones/virtualNetworkLinks', 'privatelink.postgres.database.azure.com', format('{0}-vnet-link', parameters('serverName')))]"
+              ]
+            },
+            {
+              "condition": "[and(parameters('enableAadAuth'), not(empty(parameters('aadAdminPrincipalId'))))]",
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/administrators",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('aadAdminPrincipalId'))]",
+              "properties": {
+                "principalType": "[parameters('aadAdminPrincipalType')]",
+                "principalName": "[parameters('aadAdminPrincipalName')]",
+                "tenantId": "[subscription().tenantId]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "serverName": {
+              "type": "string",
+              "value": "[parameters('serverName')]"
+            },
+            "serverFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2023-03-01-preview').fullyQualifiedDomainName]"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            },
+            "privateDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.postgres.database.azure.com"
+            },
+            "aadAuthEnabled": {
+              "type": "bool",
+              "value": "[parameters('enableAadAuth')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "containerapps-env-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[variables('containerAppEnvironmentName')]"
+          },
+          "appName": {
+            "value": "[variables('apiAppName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logs-deployment'), '2025-04-01').outputs.logAnalyticsId.value]"
+          },
+          "logAnalyticsCustomerId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logs-deployment'), '2025-04-01').outputs.customerId.value]"
+          },
+          "subnetAcaControlId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.subnetAcaControlId.value]"
+          },
+          "subnetAcaRuntimeId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.subnetAcaRuntimeId.value]"
+          },
+          "containerImage": {
+            "value": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+          },
+          "containerRegistryServer": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrLoginServer.value]"
+          },
+          "containerRegistryUsername": {
+            "value": ""
+          },
+          "containerRegistryPassword": {
+            "value": ""
+          },
+          "cpu": {
+            "value": "0.5"
+          },
+          "memory": {
+            "value": "1.0Gi"
+          },
+          "minReplicas": {
+            "value": 1
+          },
+          "maxReplicas": {
+            "value": 5
+          },
+          "databaseConnectionString": {
+            "value": "[format('postgresql://caseadmin:{0}@{1}:5432/{2}?sslmode=require', parameters('postgresqlAdminPassword'), reference(resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment'), '2025-04-01').outputs.serverFqdn.value, reference(resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment'), '2025-04-01').outputs.databaseName.value)]"
+          },
+          "allowedCorsOrigin": "[if(not(equals(parameters('allowedCorsOrigin'), '')), createObject('value', parameters('allowedCorsOrigin')), createObject('value', ''))]",
+          "apimEgressIps": {
+            "value": ""
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "15349410573062800284"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Container App Environment name"
+              }
+            },
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Container App name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "subnetAcaControlId": {
+              "type": "string",
+              "metadata": {
+                "description": "Control plane subnet ID"
+              }
+            },
+            "subnetAcaRuntimeId": {
+              "type": "string",
+              "metadata": {
+                "description": "Runtime subnet ID"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace ID"
+              }
+            },
+            "logAnalyticsCustomerId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace customer ID"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "metadata": {
+                "description": "Container image to deploy"
+              }
+            },
+            "containerRegistryServer": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container registry server"
+              }
+            },
+            "containerRegistryUsername": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container registry username"
+              }
+            },
+            "containerRegistryPassword": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container registry password"
+              }
+            },
+            "databaseConnectionString": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Database connection string"
+              }
+            },
+            "allowedCorsOrigin": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Allowed CORS origin"
+              }
+            },
+            "apimEgressIps": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "APIM egress IP addresses (comma-separated) for IP restrictions"
+              }
+            },
+            "targetPort": {
+              "type": "int",
+              "defaultValue": 8000,
+              "metadata": {
+                "description": "Target port for container"
+              }
+            },
+            "cpu": {
+              "type": "string",
+              "defaultValue": "0.5",
+              "metadata": {
+                "description": "CPU allocation"
+              }
+            },
+            "memory": {
+              "type": "string",
+              "defaultValue": "1.0Gi",
+              "metadata": {
+                "description": "Memory allocation"
+              }
+            },
+            "minReplicas": {
+              "type": "int",
+              "defaultValue": 1,
+              "metadata": {
+                "description": "Min replicas"
+              }
+            },
+            "maxReplicas": {
+              "type": "int",
+              "defaultValue": 5,
+              "metadata": {
+                "description": "Max replicas"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "variables": {
+            "registryConfig": "[if(and(not(empty(parameters('containerRegistryServer'))), not(empty(parameters('containerRegistryUsername')))), createArray(createObject('server', parameters('containerRegistryServer'), 'username', parameters('containerRegistryUsername'), 'passwordSecretRef', 'registry-password')), createArray())]",
+            "secrets": "[concat(createArray(createObject('name', 'database-url', 'value', parameters('databaseConnectionString'))), if(not(empty(parameters('containerRegistryPassword'))), createArray(createObject('name', 'registry-password', 'value', parameters('containerRegistryPassword'))), createArray()))]",
+            "ipRestrictions": "[if(not(empty(parameters('apimEgressIps'))), createArray(createObject('name', 'AllowAPIM', 'ipAddressRange', parameters('apimEgressIps'), 'action', 'Allow')), createArray())]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[parameters('environmentName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[parameters('subnetAcaControlId')]",
+                  "internal": false
+                },
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[parameters('logAnalyticsCustomerId')]",
+                    "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2023-09-01').primarySharedKey]"
+                  }
+                },
+                "zoneRedundant": false
+              }
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[parameters('appName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]",
+                "configuration": {
+                  "ingress": {
+                    "external": true,
+                    "targetPort": "[parameters('targetPort')]",
+                    "transport": "http",
+                    "allowInsecure": false
+                  },
+                  "registries": "[variables('registryConfig')]",
+                  "secrets": "[variables('secrets')]"
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "api",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json(parameters('cpu'))]",
+                        "memory": "[parameters('memory')]"
+                      },
+                      "env": [
+                        {
+                          "name": "DATABASE_URL",
+                          "secretRef": "database-url"
+                        },
+                        {
+                          "name": "ALLOWED_ORIGIN",
+                          "value": "[parameters('allowedCorsOrigin')]"
+                        },
+                        {
+                          "name": "PORT",
+                          "value": "[string(parameters('targetPort'))]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": "[parameters('minReplicas')]",
+                    "maxReplicas": "[parameters('maxReplicas')]",
+                    "rules": [
+                      {
+                        "name": "http-scaling",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "10"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "environmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]"
+            },
+            "environmentName": {
+              "type": "string",
+              "value": "[parameters('environmentName')]"
+            },
+            "appName": {
+              "type": "string",
+              "value": "[parameters('appName')]"
+            },
+            "apiFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('appName')), '2024-03-01').configuration.ingress.fqdn]"
+            },
+            "apiUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', parameters('appName')), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "managedIdentityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', parameters('appName')), '2024-03-01', 'full').identity.principalId]"
+            },
+            "apiOutboundIps": {
+              "type": "array",
+              "value": "[if(not(equals(reference(resourceId('Microsoft.App/managedEnvironments', parameters('environmentName')), '2024-03-01').staticIp, null())), createArray(reference(resourceId('Microsoft.App/managedEnvironments', parameters('environmentName')), '2024-03-01').staticIp), createArray())]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'logs-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "staticwebapp-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "staticWebAppName": {
+            "value": "[variables('staticWebAppName')]"
+          },
+          "location": {
+            "value": "[parameters('staticWebAppLocation')]"
+          },
+          "sku": {
+            "value": "Free"
+          },
+          "apiUrl": {
+            "value": "https://placeholder-will-be-updated-to-apim-url.azurewebsites.net/api"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "448632047087848880"
+            }
+          },
+          "parameters": {
+            "staticWebAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Static Web App"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "westeurope",
+              "metadata": {
+                "description": "Location for the Static Web App"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Free",
+              "allowedValues": [
+                "Free",
+                "Standard"
+              ],
+              "metadata": {
+                "description": "SKU tier (Free or Standard)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            },
+            "apiUrl": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Backend API URL for the frontend to call"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('staticWebAppName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('sku')]",
+                "tier": "[parameters('sku')]"
+              },
+              "properties": {
+                "repositoryUrl": "",
+                "branch": "",
+                "buildProperties": {
+                  "appLocation": "frontend",
+                  "apiLocation": "",
+                  "outputLocation": "dist"
+                },
+                "stagingEnvironmentPolicy": "Enabled",
+                "allowConfigFileUpdates": true
+              }
+            },
+            {
+              "condition": "[not(equals(parameters('apiUrl'), ''))]",
+              "type": "Microsoft.Web/staticSites/config",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('staticWebAppName'), 'appsettings')]",
+              "properties": {
+                "VITE_API_URL": "[parameters('apiUrl')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "staticWebAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+            },
+            "staticWebAppName": {
+              "type": "string",
+              "value": "[parameters('staticWebAppName')]"
+            },
+            "defaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-01-01').defaultHostname]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "apim-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "apimName": {
+            "value": "[format('apim-{0}', variables('resourceSuffix'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "skuName": {
+            "value": "[parameters('apimSkuName')]"
+          },
+          "backendApiFqdn": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.apiFqdn.value]"
+          },
+          "allowedCorsOrigin": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment'), '2025-04-01').outputs.defaultHostname.value]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "1961400296450247710"
+            }
+          },
+          "parameters": {
+            "apimName": {
+              "type": "string",
+              "metadata": {
+                "description": "APIM instance name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Consumption",
+              "allowedValues": [
+                "Consumption",
+                "Developer",
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "APIM SKU"
+              }
+            },
+            "publisherEmail": {
+              "type": "string",
+              "defaultValue": "admin@example.com",
+              "metadata": {
+                "description": "Publisher email"
+              }
+            },
+            "publisherName": {
+              "type": "string",
+              "defaultValue": "Case Management System",
+              "metadata": {
+                "description": "Publisher name"
+              }
+            },
+            "backendApiFqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "Backend Container App FQDN"
+              }
+            },
+            "allowedCorsOrigin": {
+              "type": "string",
+              "metadata": {
+                "description": "Allowed CORS origin (e.g., SWA hostname)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ApiManagement/service",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[parameters('apimName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "capacity": "[if(equals(parameters('skuName'), 'Consumption'), 0, 1)]"
+              },
+              "properties": {
+                "publisherEmail": "[parameters('publisherEmail')]",
+                "publisherName": "[parameters('publisherName')]"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              }
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('apimName'), 'case-api')]",
+              "properties": {
+                "displayName": "Case Management API",
+                "description": "API for case management operations",
+                "path": "api",
+                "protocols": [
+                  "https"
+                ],
+                "serviceUrl": "[format('https://{0}', parameters('backendApiFqdn'))]",
+                "subscriptionRequired": false,
+                "type": "http"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'case-api', 'all-operations')]",
+              "properties": {
+                "displayName": "All Operations",
+                "method": "*",
+                "urlTemplate": "/*",
+                "description": "Proxy all requests to Container App backend"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'case-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/policies",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'case-api', 'policy')]",
+              "properties": {
+                "value": "<policies>\n  <inbound>\n    <base />\n    <!-- Set allowed CORS origin as variable -->\n    <set-variable name=\"allowedCorsOrigin\" value=\"${allowedCorsOrigin}\" />\n    \n    <!-- CORS policy - strict, only allows SWA origin -->\n    <cors allow-credentials=\"false\">\n      <allowed-origins>\n        <origin>@((string)context.Variables[\"allowedCorsOrigin\"])</origin>\n      </allowed-origins>\n      <allowed-methods>\n        <method>GET</method>\n        <method>POST</method>\n        <method>PUT</method>\n        <method>DELETE</method>\n        <method>PATCH</method>\n        <method>OPTIONS</method>\n      </allowed-methods>\n      <allowed-headers>\n        <header>authorization</header>\n        <header>content-type</header>\n        <header>x-requested-with</header>\n        <header>accept</header>\n      </allowed-headers>\n      <expose-headers>\n        <header>content-length</header>\n        <header>content-type</header>\n      </expose-headers>\n    </cors>\n    \n    <!-- Rate limiting: 100 calls per minute per IP -->\n    <rate-limit-by-key calls=\"100\" renewal-period=\"60\" counter-key=\"@(context.Request.IpAddress)\" />\n    \n    <!-- TODO: Add JWT validation when Entra ID auth is implemented -->\n    <!--\n    <validate-jwt header-name=\"Authorization\" failed-validation-httpcode=\"401\" failed-validation-error-message=\"Unauthorized\">\n      <openid-config url=\"https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration\" />\n      <audiences>\n        <audience>api://case-management-api</audience>\n      </audiences>\n      <required-claims>\n        <claim name=\"scp\" match=\"all\">\n          <value>access_as_user</value>\n        </claim>\n      </required-claims>\n    </validate-jwt>\n    -->\n  </inbound>\n  <backend>\n    <base />\n  </backend>\n  <outbound>\n    <base />\n  </outbound>\n  <on-error>\n    <base />\n  </on-error>\n</policies>\n",
+                "format": "xml"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'case-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/products",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('apimName'), 'case-management')]",
+              "properties": {
+                "displayName": "Case Management",
+                "description": "Access to Case Management APIs",
+                "subscriptionRequired": false,
+                "approvalRequired": false,
+                "state": "published"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/products/apis",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'case-management', 'case-api')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'case-api')]",
+                "[resourceId('Microsoft.ApiManagement/service/products', parameters('apimName'), 'case-management')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "apimId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
+            },
+            "apimName": {
+              "type": "string",
+              "value": "[parameters('apimName')]"
+            },
+            "gatewayHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ApiManagement/service', parameters('apimName')), '2023-03-01-preview').gatewayUrl]"
+            },
+            "apiUrl": {
+              "type": "string",
+              "value": "[format('{0}/api', reference(resourceId('Microsoft.ApiManagement/service', parameters('apimName')), '2023-03-01-preview').gatewayUrl)]"
+            },
+            "publicIpAddresses": {
+              "type": "array",
+              "value": "[reference(resourceId('Microsoft.ApiManagement/service', parameters('apimName')), '2023-03-01-preview').publicIPAddresses]"
+            },
+            "managedIdentityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ApiManagement/service', parameters('apimName')), '2023-03-01-preview', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "frontdoor-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "resourceSuffix": {
+            "value": "[variables('resourceSuffix')]"
+          },
+          "location": {
+            "value": "global"
+          },
+          "staticWebAppHostname": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment'), '2025-04-01').outputs.defaultHostname.value]"
+          },
+          "apimHostname": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'apim-deployment'), '2025-04-01').outputs.gatewayHostname.value]"
+          },
+          "customDomain": {
+            "value": "[parameters('frontDoorCustomDomain')]"
+          },
+          "skuName": {
+            "value": "[parameters('frontDoorSkuName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "11888937864357534971"
+            }
+          },
+          "parameters": {
+            "resourceSuffix": {
+              "type": "string",
+              "metadata": {
+                "description": "The suffix for naming resources."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "global",
+              "metadata": {
+                "description": "The location for the Azure Front Door resources. Front Door is a global service but its resources need a location."
+              }
+            },
+            "staticWebAppHostname": {
+              "type": "string",
+              "metadata": {
+                "description": "The hostname of the Static Web App to use as the backend origin."
+              }
+            },
+            "apimHostname": {
+              "type": "string",
+              "metadata": {
+                "description": "The hostname of the API Management to use as the backend origin."
+              }
+            },
+            "customDomain": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional custom domain for Front Door. If not provided, will use the default azurefd.net domain."
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Standard_AzureFrontDoor",
+              "allowedValues": [
+                "Standard_AzureFrontDoor",
+                "Premium_AzureFrontDoor"
+              ],
+              "metadata": {
+                "description": "The SKU name for Azure Front Door."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to all resources."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Cdn/profiles",
+              "apiVersion": "2023-05-01",
+              "name": "[format('afd-{0}', parameters('resourceSuffix'))]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('skuName')]"
+              },
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "originResponseTimeoutSeconds": 60
+              }
+            },
+            {
+              "condition": "[equals(parameters('skuName'), 'Premium_AzureFrontDoor')]",
+              "type": "Microsoft.Network/FrontDoorWebApplicationFirewallPolicies",
+              "apiVersion": "2022-05-01",
+              "name": "[format('waf{0}', replace(parameters('resourceSuffix'), '-', ''))]",
+              "location": "global",
+              "sku": {
+                "name": "[parameters('skuName')]"
+              },
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "policySettings": {
+                  "enabledState": "Enabled",
+                  "mode": "Prevention",
+                  "requestBodyCheck": "Enabled"
+                },
+                "managedRules": {
+                  "managedRuleSets": [
+                    {
+                      "ruleSetType": "Microsoft_DefaultRuleSet",
+                      "ruleSetVersion": "2.1",
+                      "ruleSetAction": "Block"
+                    },
+                    {
+                      "ruleSetType": "Microsoft_BotManagerRuleSet",
+                      "ruleSetVersion": "1.0",
+                      "ruleSetAction": "Block"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/afdEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "enabledState": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('afd-{0}', parameters('resourceSuffix')), 'og-swa')]",
+              "properties": {
+                "loadBalancingSettings": {
+                  "sampleSize": 4,
+                  "successfulSamplesRequired": 3,
+                  "additionalLatencyInMilliseconds": 50
+                },
+                "healthProbeSettings": {
+                  "probePath": "/",
+                  "probeRequestType": "HEAD",
+                  "probeProtocol": "Https",
+                  "probeIntervalInSeconds": 100
+                },
+                "sessionAffinityState": "Disabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('afd-{0}', parameters('resourceSuffix')), 'og-apim')]",
+              "properties": {
+                "loadBalancingSettings": {
+                  "sampleSize": 4,
+                  "successfulSamplesRequired": 3,
+                  "additionalLatencyInMilliseconds": 50
+                },
+                "healthProbeSettings": {
+                  "probePath": "/status-0123456789abcdef",
+                  "probeRequestType": "HEAD",
+                  "probeProtocol": "Https",
+                  "probeIntervalInSeconds": 100
+                },
+                "sessionAffinityState": "Disabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups/origins",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('afd-{0}', parameters('resourceSuffix')), 'og-swa', 'origin-swa')]",
+              "properties": {
+                "hostName": "[parameters('staticWebAppHostname')]",
+                "httpPort": 80,
+                "httpsPort": 443,
+                "originHostHeader": "[parameters('staticWebAppHostname')]",
+                "priority": 1,
+                "weight": 1000,
+                "enabledState": "Enabled",
+                "enforceCertificateNameCheck": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-swa')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/originGroups/origins",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('afd-{0}', parameters('resourceSuffix')), 'og-apim', 'origin-apim')]",
+              "properties": {
+                "hostName": "[parameters('apimHostname')]",
+                "httpPort": 80,
+                "httpsPort": 443,
+                "originHostHeader": "[parameters('apimHostname')]",
+                "priority": 1,
+                "weight": 1000,
+                "enabledState": "Enabled",
+                "enforceCertificateNameCheck": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-apim')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/afdEndpoints/routes",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')), 'route-swa')]",
+              "properties": {
+                "customDomains": "[if(not(equals(parameters('customDomain'), '')), createArray(createObject('id', resourceId('Microsoft.Cdn/profiles/customDomains', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-')))), createArray())]",
+                "originGroup": {
+                  "id": "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-swa')]"
+                },
+                "supportedProtocols": [
+                  "Http",
+                  "Https"
+                ],
+                "patternsToMatch": [
+                  "/*"
+                ],
+                "forwardingProtocol": "HttpsOnly",
+                "linkToDefaultDomain": "Enabled",
+                "httpsRedirect": "Enabled",
+                "enabledState": "Enabled",
+                "cacheConfiguration": {
+                  "queryStringCachingBehavior": "IgnoreQueryString",
+                  "compressionSettings": {
+                    "contentTypesToCompress": [
+                      "text/html",
+                      "text/css",
+                      "application/javascript",
+                      "application/json"
+                    ],
+                    "isCompressionEnabled": true
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/customDomains', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-'))]",
+                "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')))]",
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-swa')]",
+                "[resourceId('Microsoft.Cdn/profiles/originGroups/origins', format('afd-{0}', parameters('resourceSuffix')), 'og-swa', 'origin-swa')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Cdn/profiles/afdEndpoints/routes",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')), 'route-apim')]",
+              "properties": {
+                "customDomains": "[if(not(equals(parameters('customDomain'), '')), createArray(createObject('id', resourceId('Microsoft.Cdn/profiles/customDomains', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-')))), createArray())]",
+                "originGroup": {
+                  "id": "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-apim')]"
+                },
+                "supportedProtocols": [
+                  "Http",
+                  "Https"
+                ],
+                "patternsToMatch": [
+                  "/api/*"
+                ],
+                "forwardingProtocol": "HttpsOnly",
+                "linkToDefaultDomain": "Enabled",
+                "httpsRedirect": "Enabled",
+                "enabledState": "Enabled",
+                "cacheConfiguration": {
+                  "queryStringCachingBehavior": "UseQueryString"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/customDomains', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-'))]",
+                "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')))]",
+                "[resourceId('Microsoft.Cdn/profiles/originGroups/origins', format('afd-{0}', parameters('resourceSuffix')), 'og-apim', 'origin-apim')]",
+                "[resourceId('Microsoft.Cdn/profiles/originGroups', format('afd-{0}', parameters('resourceSuffix')), 'og-apim')]"
+              ]
+            },
+            {
+              "condition": "[equals(parameters('skuName'), 'Premium_AzureFrontDoor')]",
+              "type": "Microsoft.Cdn/profiles/securityPolicies",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('afd-{0}', parameters('resourceSuffix')), 'security-policy')]",
+              "properties": {
+                "parameters": {
+                  "type": "WebApplicationFirewall",
+                  "wafPolicy": {
+                    "id": "[resourceId('Microsoft.Network/FrontDoorWebApplicationFirewallPolicies', format('waf{0}', replace(parameters('resourceSuffix'), '-', '')))]"
+                  },
+                  "associations": [
+                    {
+                      "domains": [
+                        {
+                          "id": "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')))]"
+                        }
+                      ],
+                      "patternsToMatch": [
+                        "/*"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix')))]",
+                "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]",
+                "[resourceId('Microsoft.Network/FrontDoorWebApplicationFirewallPolicies', format('waf{0}', replace(parameters('resourceSuffix'), '-', '')))]"
+              ]
+            },
+            {
+              "condition": "[not(equals(parameters('customDomain'), ''))]",
+              "type": "Microsoft.Cdn/profiles/customDomains",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-'))]",
+              "properties": {
+                "hostName": "[parameters('customDomain')]",
+                "tlsSettings": {
+                  "certificateType": "ManagedCertificate",
+                  "minimumTlsVersion": "TLS12"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "frontDoorId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cdn/profiles', format('afd-{0}', parameters('resourceSuffix')))]"
+            },
+            "frontDoorName": {
+              "type": "string",
+              "value": "[format('afd-{0}', parameters('resourceSuffix'))]"
+            },
+            "frontDoorEndpointHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix'))), '2023-05-01').hostName]"
+            },
+            "frontDoorEndpointUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('afd-{0}', parameters('resourceSuffix')), format('endpoint-{0}', parameters('resourceSuffix'))), '2023-05-01').hostName)]"
+            },
+            "wafPolicyId": {
+              "type": "string",
+              "value": "[if(equals(parameters('skuName'), 'Premium_AzureFrontDoor'), resourceId('Microsoft.Network/FrontDoorWebApplicationFirewallPolicies', format('waf{0}', replace(parameters('resourceSuffix'), '-', ''))), 'N/A - Standard tier does not include WAF')]"
+            },
+            "customDomainValidationToken": {
+              "type": "string",
+              "value": "[if(not(equals(parameters('customDomain'), '')), reference(resourceId('Microsoft.Cdn/profiles/customDomains', format('afd-{0}', parameters('resourceSuffix')), replace(parameters('customDomain'), '.', '-')), '2023-05-01').validationProperties.validationToken, '')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'apim-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "keyvault-role-assignment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[format('kv-{0}{1}', replace(parameters('baseName'), '-', ''), parameters('environmentName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.managedIdentityPrincipalId.value]"
+          },
+          "enableRbacAuthorization": {
+            "value": true
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "18393449106657156007"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "principalId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Object ID of the principal (managed identity) that needs access"
+              }
+            },
+            "enableRbacAuthorization": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable RBAC authorization (recommended)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": "[parameters('enableRbacAuthorization')]",
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 90,
+                "enablePurgeProtection": true,
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "defaultAction": "Allow",
+                  "bypass": "AzureServices"
+                }
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('principalId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('principalId'), '4633458b-17de-408a-b874-0445c86b69e6')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[parameters('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "postgresql-aad-config",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "serverName": {
+            "value": "[variables('postgresqlServerName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "caseadmin"
+          },
+          "adminPassword": {
+            "value": "[parameters('postgresqlAdminPassword')]"
+          },
+          "databaseName": {
+            "value": "casemanagement"
+          },
+          "postgresqlVersion": {
+            "value": "16"
+          },
+          "skuTier": {
+            "value": "Burstable"
+          },
+          "skuName": {
+            "value": "Standard_B1ms"
+          },
+          "storageSizeGB": {
+            "value": 32
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.subnetPostgresId.value]"
+          },
+          "vnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.vnetId.value]"
+          },
+          "dnsZoneResourceGroupName": "[if(not(equals(parameters('dnsZoneResourceGroupName'), '')), createObject('value', parameters('dnsZoneResourceGroupName')), createObject('value', resourceGroup().name))]",
+          "enableAadAuth": {
+            "value": "[parameters('enablePostgresAadAuth')]"
+          },
+          "aadAdminPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.managedIdentityPrincipalId.value]"
+          },
+          "aadAdminPrincipalName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.appName.value]"
+          },
+          "aadAdminPrincipalType": {
+            "value": "ServicePrincipal"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5839693290322788455"
+            }
+          },
+          "parameters": {
+            "serverName": {
+              "type": "string",
+              "metadata": {
+                "description": "PostgreSQL server name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "postgresqlVersion": {
+              "type": "string",
+              "defaultValue": "16",
+              "metadata": {
+                "description": "PostgreSQL version"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Administrator username"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Administrator password"
+              }
+            },
+            "enableAadAuth": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable Azure AD authentication"
+              }
+            },
+            "aadAdminPrincipalId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure AD admin principal ID (user or service principal)"
+              }
+            },
+            "aadAdminPrincipalName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure AD admin principal name"
+              }
+            },
+            "aadAdminPrincipalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "metadata": {
+                "description": "Azure AD admin principal type (User, Group, ServicePrincipal)"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "Database name"
+              }
+            },
+            "skuTier": {
+              "type": "string",
+              "defaultValue": "Burstable",
+              "metadata": {
+                "description": "SKU tier (Burstable, GeneralPurpose, MemoryOptimized)"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Standard_B1ms",
+              "metadata": {
+                "description": "SKU name (Standard_B1ms, Standard_D2s_v3, etc.)"
+              }
+            },
+            "storageSizeGB": {
+              "type": "int",
+              "defaultValue": 32,
+              "metadata": {
+                "description": "Storage size in GB"
+              }
+            },
+            "subnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Subnet ID for PostgreSQL delegation"
+              }
+            },
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet ID for Private DNS zone link"
+              }
+            },
+            "dnsZoneResourceGroupName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource group name for DNS zone (if different from deployment RG)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "variables": {
+            "dnsResourceGroup": "[if(empty(parameters('dnsZoneResourceGroupName')), resourceGroup().name, parameters('dnsZoneResourceGroupName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.postgres.database.azure.com",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.postgres.database.azure.com', format('{0}-vnet-link', parameters('serverName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[parameters('vnetId')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[parameters('serverName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuTier')]"
+              },
+              "properties": {
+                "version": "[parameters('postgresqlVersion')]",
+                "administratorLogin": "[parameters('adminUsername')]",
+                "administratorLoginPassword": "[parameters('adminPassword')]",
+                "storage": {
+                  "storageSizeGB": "[parameters('storageSizeGB')]",
+                  "autoGrow": "Enabled"
+                },
+                "backup": {
+                  "backupRetentionDays": 7,
+                  "geoRedundantBackup": "Disabled"
+                },
+                "highAvailability": {
+                  "mode": "Disabled"
+                },
+                "network": {
+                  "delegatedSubnetResourceId": "[parameters('subnetId')]",
+                  "privateDnsZoneArmResourceId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+                },
+                "authConfig": {
+                  "activeDirectoryAuth": "[if(parameters('enableAadAuth'), 'Enabled', 'Disabled')]",
+                  "passwordAuth": "Enabled",
+                  "tenantId": "[subscription().tenantId]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]",
+                "[resourceId('Microsoft.Network/privateDnsZones/virtualNetworkLinks', 'privatelink.postgres.database.azure.com', format('{0}-vnet-link', parameters('serverName')))]"
+              ]
+            },
+            {
+              "condition": "[and(parameters('enableAadAuth'), not(empty(parameters('aadAdminPrincipalId'))))]",
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/administrators",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('aadAdminPrincipalId'))]",
+              "properties": {
+                "principalType": "[parameters('aadAdminPrincipalType')]",
+                "principalName": "[parameters('aadAdminPrincipalName')]",
+                "tenantId": "[subscription().tenantId]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+              "apiVersion": "2023-03-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "serverName": {
+              "type": "string",
+              "value": "[parameters('serverName')]"
+            },
+            "serverFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2023-03-01-preview').fullyQualifiedDomainName]"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            },
+            "privateDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.postgres.database.azure.com"
+            },
+            "aadAuthEnabled": {
+              "type": "bool",
+              "value": "[parameters('enableAadAuth')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "frontendUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment'), '2025-04-01').outputs.defaultHostname.value)]"
+    },
+    "frontDoorUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'frontdoor-deployment'), '2025-04-01').outputs.frontDoorEndpointUrl.value]"
+    },
+    "customDomainUrl": {
+      "type": "string",
+      "value": "[if(not(equals(parameters('frontDoorCustomDomain'), '')), format('https://{0}', parameters('frontDoorCustomDomain')), '')]"
+    },
+    "apiUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.apiUrl.value]"
+    },
+    "apimUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'apim-deployment'), '2025-04-01').outputs.apiUrl.value]"
+    },
+    "apiFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.apiFqdn.value]"
+    },
+    "apimGatewayHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'apim-deployment'), '2025-04-01').outputs.gatewayHostname.value]"
+    },
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrLoginServer.value]"
+    },
+    "acrName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrName.value]"
+    },
+    "containerAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.appName.value]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'staticwebapp-deployment'), '2025-04-01').outputs.staticWebAppName.value]"
+    },
+    "logAnalyticsName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logs-deployment'), '2025-04-01').outputs.logAnalyticsName.value]"
+    },
+    "containerAppEnvironmentName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.environmentName.value]"
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[resourceGroup().name]"
+    },
+    "postgresqlServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment'), '2025-04-01').outputs.serverFqdn.value]"
+    },
+    "postgresqlDatabaseName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment'), '2025-04-01').outputs.databaseName.value]"
+    },
+    "postgresqlPrivateDnsZone": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-private-deployment'), '2025-04-01').outputs.privateDnsZoneName.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
+    },
+    "vnetName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.vnetName.value]"
+    },
+    "natPublicIp": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2025-04-01').outputs.natPublicIp.value]"
+    },
+    "containerAppManagedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerapps-env-deployment'), '2025-04-01').outputs.managedIdentityPrincipalId.value]"
+    },
+    "apimManagedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'apim-deployment'), '2025-04-01').outputs.managedIdentityPrincipalId.value]"
+    },
+    "wafPolicyId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'frontdoor-deployment'), '2025-04-01').outputs.wafPolicyId.value]"
+    },
+    "customDomainValidationToken": {
+      "type": "string",
+      "value": "[if(not(equals(parameters('frontDoorCustomDomain'), '')), reference(resourceId('Microsoft.Resources/deployments', 'frontdoor-deployment'), '2025-04-01').outputs.customDomainValidationToken.value, '')]"
+    },
+    "deploymentMessage": {
+      "type": "string",
+      "value": "🎉 Deployment Complete - Production-Ready Architecture!\n\nFRONTEND ACCESS:\n🌐 Static Web App: https://${staticWebApp.outputs.defaultHostname}\n� Front Door (CDN + WAF): ${frontDoor.outputs.frontDoorEndpointUrl}\n${frontDoorCustomDomain != '' ? '🎯 Custom Domain: https://${frontDoorCustomDomain}' : ''}\n\nBACKEND ACCESS:\n🔗 Container App (direct): ${containerAppsEnv.outputs.apiUrl}\n�️  API Management (secured): ${apiManagement.outputs.apiUrl}\n📊 API Docs: ${containerAppsEnv.outputs.apiUrl}/docs\n\nINFRASTRUCTURE:\n� VNet: ${networking.outputs.vnetName}\n📤 NAT Gateway IP: ${networking.outputs.natPublicIp}\n🗄️  PostgreSQL (private): ${postgresqlPrivate.outputs.serverFqdn}\n� Key Vault: ${keyVault.outputs.keyVaultName}\n�️  WAF Policy: Enabled (OWASP + Bot Protection)\n\nARCHITECTURE FLOW:\nUser → Front Door (WAF) → Static Web App (frontend)\n                         → APIM (rate limit + CORS) → Container App → PostgreSQL\n\nNEXT STEPS:\n1. Deploy backend: docker push ${acr.outputs.acrLoginServer}/api:latest\n2. Frontend auto-deploys via GitHub Actions\n${frontDoorCustomDomain != '' ? '3. Add CNAME record: ${frontDoorCustomDomain} → ${frontDoor.outputs.frontDoorEndpointHostname}\\n4. Validation token: ${frontDoor.outputs.customDomainValidationToken}' : ''}\n\n🔒 Security Features:\n✅ VNet isolation with private endpoints\n✅ NAT Gateway for fixed egress IP\n✅ WAF with OWASP rules + bot protection\n✅ APIM rate limiting (100 req/min)\n✅ Private PostgreSQL (no public access)\n✅ Key Vault with RBAC + managed identities\n✅ HTTPS enforcement everywhere\n"
+    }
+  }
+}
