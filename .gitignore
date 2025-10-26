@@ -33,3 +33,9 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Azure Bicep compiled files
+*.json
+!*parameters*.json
+!package*.json
+!tsconfig.json
