@@ -177,5 +177,5 @@ output apimId string = apim.id
 output apimName string = apim.name
 output gatewayHostname string = apim.properties.gatewayUrl
 output apiUrl string = '${apim.properties.gatewayUrl}/api'
-output publicIpAddresses array = apim.properties.publicIPAddresses
+output publicIpAddresses array = apim.properties.publicIPAddresses ?? []
 output managedIdentityPrincipalId string = apim.identity.principalId
