@@ -274,27 +274,14 @@ module keyVaultRoleAssignment 'modules/keyvault.bicep' = {
   ]
 }
 
-// 11. Grant Container App managed identity access to PostgreSQL
-module postgresqlAadConfig 'modules/postgres-private.bicep' = {
+// 11. Grant Container App managed identity access to PostgreSQL (AAD Admin only)
+module postgresqlAadConfig 'modules/postgres-aad-admin.bicep' = if (enablePostgresAadAuth) {
   name: 'postgresql-aad-config'
   params: {
     serverName: postgresqlServerName
-    location: location
-    adminUsername: 'caseadmin'
-    adminPassword: postgresqlAdminPassword
-    databaseName: 'casemanagement'
-    postgresqlVersion: '16'
-    skuTier: 'Burstable'
-    skuName: 'Standard_B1ms'
-    storageSizeGB: 32
-    subnetId: networking.outputs.subnetPostgresId
-    vnetId: networking.outputs.vnetId
-    dnsZoneResourceGroupName: dnsZoneResourceGroupName != '' ? dnsZoneResourceGroupName : resourceGroup().name
-    enableAadAuth: enablePostgresAadAuth
     aadAdminPrincipalId: containerAppsEnv.outputs.managedIdentityPrincipalId
     aadAdminPrincipalName: containerAppsEnv.outputs.appName
     aadAdminPrincipalType: 'ServicePrincipal'
-    tags: tags
   }
   dependsOn: [
     postgresqlPrivate
