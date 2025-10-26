@@ -67,14 +67,20 @@ jobs:
             --scope $ACR_ID \
             || echo "Role assignment already exists"
 
-      - name: Update Container App
+      - name: Configure Container App Registry
+        run: |
+          az containerapp registry set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --server ${{ env.ACR_NAME }}.azurecr.io \
+            --identity system
+
+      - name: Update Container App Image
         run: |
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --registry-server ${{ env.ACR_NAME }}.azurecr.io \
-            --registry-identity system
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           
           echo "Backend API updated successfully!"
 
