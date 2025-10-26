@@ -121,8 +121,8 @@ resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-03-01-pre
       </expose-headers>
     </cors>
     
-    <!-- Rate limiting: 100 calls per minute per IP -->
-    <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+    <!-- Rate limiting: 100 calls per minute (simple rate-limit works in Consumption SKU) -->
+    <rate-limit calls="100" renewal-period="60" />
     
     <!-- TODO: Add JWT validation when Entra ID auth is implemented -->
     <!--
@@ -161,8 +161,7 @@ resource product 'Microsoft.ApiManagement/service/products@2023-03-01-preview' =
   properties: {
     displayName: 'Case Management'
     description: 'Access to Case Management APIs'
-    subscriptionRequired: false // TODO: Enable when implementing API keys
-    approvalRequired: false
+    subscriptionRequired: false // No API keys required for now
     state: 'published'
   }
 }
