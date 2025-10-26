@@ -11,7 +11,7 @@ on:
   workflow_dispatch: # Manual trigger
 
 env:
-  API_URL: https://ca-api-casemanagement-dev.agreeablesmoke-8b3eacca.norwayeast.azurecontainerapps.io/api
+  API_URL: https://ca-api-casemanagement-dev.wonderfulfield-b342f39f.norwayeast.azurecontainerapps.io/api
 
 jobs:
   deploy-frontend:
@@ -62,7 +62,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Your frontend has been deployed to Azure Static Web Apps!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://stapp-casemanagement-dev.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://zealous-hill-04965a603.3.azurestaticapps.net" >> $GITHUB_STEP_SUMMARY
           echo "**API Endpoint:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
