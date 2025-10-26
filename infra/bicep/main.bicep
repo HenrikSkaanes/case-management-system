@@ -285,7 +285,6 @@ module postgresqlAadConfig 'modules/postgres-aad-admin.bicep' = if (enablePostgr
   }
   dependsOn: [
     postgresqlPrivate
-    containerAppsEnv
   ]
 }
 

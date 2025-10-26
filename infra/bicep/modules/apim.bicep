@@ -175,7 +175,7 @@ resource productApi 'Microsoft.ApiManagement/service/products/apis@2023-03-01-pr
 // Outputs
 output apimId string = apim.id
 output apimName string = apim.name
-output gatewayHostname string = apim.properties.gatewayUrl
+output gatewayHostname string = replace(apim.properties.gatewayUrl, 'https://', '')
 output apiUrl string = '${apim.properties.gatewayUrl}/api'
 output publicIpAddresses array = apim.properties.publicIPAddresses ?? []
 output managedIdentityPrincipalId string = apim.identity.principalId
