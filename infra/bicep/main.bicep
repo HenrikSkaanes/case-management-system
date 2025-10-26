@@ -47,14 +47,14 @@ param dnsZoneResourceGroupName string = ''
 @description('VNet address prefix')
 param vnetAddressPrefix string = '10.10.0.0/16'
 
-@description('Container Apps control plane subnet prefix')
-param subnetAcaControlPrefix string = '10.10.1.0/24'
+@description('Container Apps control plane subnet prefix - must be /23 or larger')
+param subnetAcaControlPrefix string = '10.10.0.0/23'
 
-@description('Container Apps runtime subnet prefix')
-param subnetAcaRuntimePrefix string = '10.10.2.0/24'
+@description('Container Apps runtime subnet prefix - must be /23 or larger')
+param subnetAcaRuntimePrefix string = '10.10.2.0/23'
 
 @description('PostgreSQL delegated subnet prefix')
-param subnetPostgresPrefix string = '10.10.3.0/24'
+param subnetPostgresPrefix string = '10.10.4.0/24'
 
 @description('API Management SKU (Developer, Basic, Standard, Premium, Consumption)')
 @allowed([

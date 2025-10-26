@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "1846868489151457632"
+      "templateHash": "6338628779311904621"
     }
   },
   "parameters": {
@@ -85,21 +85,21 @@
     },
     "subnetAcaControlPrefix": {
       "type": "string",
-      "defaultValue": "10.10.1.0/24",
+      "defaultValue": "10.10.0.0/23",
       "metadata": {
-        "description": "Container Apps control plane subnet prefix"
+        "description": "Container Apps control plane subnet prefix - must be /23 or larger"
       }
     },
     "subnetAcaRuntimePrefix": {
       "type": "string",
-      "defaultValue": "10.10.2.0/24",
+      "defaultValue": "10.10.2.0/23",
       "metadata": {
-        "description": "Container Apps runtime subnet prefix"
+        "description": "Container Apps runtime subnet prefix - must be /23 or larger"
       }
     },
     "subnetPostgresPrefix": {
       "type": "string",
-      "defaultValue": "10.10.3.0/24",
+      "defaultValue": "10.10.4.0/24",
       "metadata": {
         "description": "PostgreSQL delegated subnet prefix"
       }
@@ -193,7 +193,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "8735366969067468898"
+              "templateHash": "3203784030029841729"
             }
           },
           "parameters": {
@@ -219,21 +219,21 @@
             },
             "subnetAcaControlPrefix": {
               "type": "string",
-              "defaultValue": "10.10.1.0/24",
+              "defaultValue": "10.10.0.0/23",
               "metadata": {
-                "description": "Container Apps control plane subnet prefix"
+                "description": "Container Apps control plane subnet prefix - must be /23 or larger"
               }
             },
             "subnetAcaRuntimePrefix": {
               "type": "string",
-              "defaultValue": "10.10.2.0/24",
+              "defaultValue": "10.10.2.0/23",
               "metadata": {
-                "description": "Container Apps runtime subnet prefix"
+                "description": "Container Apps runtime subnet prefix - must be /23 or larger"
               }
             },
             "subnetPostgresPrefix": {
               "type": "string",
-              "defaultValue": "10.10.3.0/24",
+              "defaultValue": "10.10.4.0/24",
               "metadata": {
                 "description": "PostgreSQL delegated subnet prefix"
               }
