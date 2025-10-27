@@ -6,21 +6,44 @@ This folder contains the Azure infrastructure definition for the Case Management
 
 ```
 infra/bicep/
-├── main.bicep                      # Main orchestration file
-├── main.parameters.dev.json        # Parameters for dev environment
+├── main.bicep                              # Main orchestration file
+├── main.parameters.dev-optimized.json      # Parameters for dev environment
 └── modules/
-    ├── acr.bicep                   # Container Registry
-    ├── logs.bicep                  # Log Analytics
-    ├── environment.bicep           # Container App Environment
-    └── app.bicep                   # Container App
+    ├── acr.bicep                           # Container Registry
+    ├── logs.bicep                          # Log Analytics
+    ├── networking.bicep                    # VNet, Subnets, NAT Gateway
+    ├── keyvault.bicep                      # Key Vault for secrets
+    ├── postgres-private.bicep              # PostgreSQL with private endpoint
+    ├── containerapps-env-vnet.bicep        # Container App Environment + App
+    ├── staticwebapp.bicep                  # Static Web App (frontend)
+    ├── communication-services.bicep        # Azure Communication Services (email)
+    ├── logic-app.bicep                     # Logic Apps (workflow automation)
+    ├── apim.bicep                          # API Management (Consumption)
+    ├── frontdoor-waf.bicep                 # Azure Front Door + WAF
+    └── postgres-aad-admin.bicep            # PostgreSQL AAD authentication
 ```
 
 ## 🏗️ Resources Created
 
-1. **Azure Container Registry (ACR)** - Stores Docker images
-2. **Log Analytics Workspace** - Collects logs and metrics
-3. **Container App Environment** - Runtime infrastructure
-4. **Container App** - Your application
+### Core Infrastructure
+1. **Azure Container Registry (ACR)** - Stores Docker images with managed identity
+2. **Log Analytics Workspace** - Centralized logging and monitoring
+3. **VNet + NAT Gateway** - Private networking with fixed egress IP
+4. **Key Vault** - Secure secrets management with RBAC
+
+### Application Layer
+5. **Container App Environment** - VNet-injected runtime with autoscaling
+6. **Container App (Backend)** - FastAPI application with managed identity
+7. **Static Web App (Frontend)** - React frontend on global CDN
+8. **PostgreSQL Flexible Server** - Private database with Azure AD auth
+
+### Communication & Automation
+9. **Azure Communication Services (ACS)** - Email notifications (~$0.25 per 1,000 emails)
+10. **Logic Apps** - Workflow automation for Teams notifications, approvals, etc.
+
+### Security & Gateway
+11. **API Management (Consumption)** - Rate limiting, CORS, API gateway
+12. **Azure Front Door + WAF** - Global CDN with OWASP protection and bot management
 
 ## 🚀 Manual Deployment (for testing)
 
@@ -62,16 +85,25 @@ Edit `main.parameters.dev.json` to customize:
 - `location`: Azure region (default: "norwayeast")
 - `imageTag`: Docker image tag (default: "latest")
 
-## 💰 Cost Estimate (Norway East)
+## 💰 Cost Estimate (Norway East - Production-Ready)
 
 | Resource | Tier | Estimated Cost |
 |----------|------|----------------|
 | ACR | Basic | ~$5/month |
-| Container App | 0.5 CPU, 1GB RAM | ~$10-15/month |
-| Log Analytics | 30 day retention | ~$2-5/month |
-| **Total** | | **~$17-25/month** |
+| Container App | 0.5 CPU, 1GB RAM | ~$23/month |
+| PostgreSQL | B1ms (Burstable) | ~$25/month |
+| Static Web App | Free | $0 |
+| Log Analytics | Basic ingestion | ~$3/month |
+| VNet + NAT Gateway | Standard | ~$10/month |
+| API Management | Consumption | ~$5/month |
+| Azure Front Door | Standard | ~$35/month |
+| Key Vault | Standard | ~$1/month |
+| **Communication Services** | **Pay-per-email** | **~$0.25 per 1,000 emails** |
+| **Logic Apps** | **Consumption** | **Free (first 4,000 actions)** |
+| **Total (base)** | | **~$107/month** |
+| **Total (with 10k emails)** | | **~$110/month** |
 
-*Costs vary based on usage. Container Apps scale to zero when idle.*
+*Costs vary based on usage. Container Apps scale to zero when idle. Email and Logic Apps are pay-per-use.*
 
 ## 🔧 Customization
 

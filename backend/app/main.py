@@ -18,8 +18,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Case Management API",
-    description="Backend API for managing support tickets and cases",
-    version="2.0.0"
+    description="Backend API for managing support tickets and cases with email notifications",
+    version="2.1.0"  # Added Azure Communication Services
 )
 
 # CORS - Allow Static Web App frontend to call this API
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",                                      # Vite dev server (local development)
         "http://localhost:3000",                                      # Alternative local port
-        "https://red-stone-034abd803.3.azurestaticapps.net",         # Azure Static Web App (production)
+        "https://zealous-hill-04965a603.3.azurestaticapps.net",      # Azure Static Web App (production)
         # Add your custom domain here when you set one up
     ],
     allow_credentials=True,
@@ -44,7 +44,7 @@ def root():
     """
     return {
         "message": "Case Management API",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "status": "running",
         "docs": "/docs",  # Swagger UI
         "redoc": "/redoc"  # ReDoc UI
