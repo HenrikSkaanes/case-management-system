@@ -22,6 +22,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('kanban') // 'kanban' or 'metrics'
 
   useEffect(() => {
+    console.log('🔄 Dashboard mounted - loading tickets...');
     loadTickets()
   }, [])
 
