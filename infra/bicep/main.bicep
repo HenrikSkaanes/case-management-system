@@ -96,6 +96,8 @@ var containerAppEnvironmentName = 'cae-${resourceSuffix}'
 var apiAppName = 'ca-api-${resourceSuffix}'
 var staticWebAppName = 'stapp-${resourceSuffix}'
 var postgresqlServerName = 'psql-${replace(baseName, '-', '')}-${environmentName}'
+var acsBaseName = '${replace(baseName, '-', '')}${environmentName}'
+var logicAppEmailName = 'logic-email-${resourceSuffix}'
 
 // ============================================
 // MODULES
@@ -132,6 +134,17 @@ module logs 'modules/logs.bicep' = {
   params: {
     logAnalyticsName: logAnalyticsName
     location: location
+    tags: tags
+  }
+}
+
+// 3a. Azure Communication Services (email notifications) - Can deploy early
+module communicationServices 'modules/communication-services.bicep' = {
+  name: 'communication-services-deployment'
+  params: {
+    baseName: acsBaseName
+    location: 'global'
+    dataLocation: 'Europe'
     tags: tags
   }
 }
@@ -198,16 +211,13 @@ module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
     minReplicas: 1
     maxReplicas: 5
     databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresqlPrivate.outputs.serverFqdn}:5432/${postgresqlPrivate.outputs.databaseName}?sslmode=require'
+    acsConnectionString: communicationServices.outputs.connectionString
+    acsSenderEmail: communicationServices.outputs.senderEmail
+    companyName: 'Wrangler Tax Services'
     allowedCorsOrigin: allowedCorsOrigin != '' ? allowedCorsOrigin : ''  // Will be set to SWA hostname after deployment
     apimEgressIps: ''  // TODO: Set after APIM is deployed
     tags: tags
   }
-  dependsOn: [
-    networking
-    logs
-    acr
-    postgresqlPrivate
-  ]
 }
 
 // 7. Static Web App (Frontend on CDN) - Can deploy early, will point to APIM later
@@ -218,6 +228,79 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
     location: staticWebAppLocation
     sku: 'Free'  // Free tier is perfect for this!
     apiUrl: 'https://placeholder-will-be-updated-to-apim-url.azurewebsites.net/api'  // Will be updated after APIM deployment
+    tags: tags
+  }
+}
+
+// 7a. Logic App (Email workflow automation) - After Container App for webhook URL
+module logicAppEmail 'modules/logic-app.bicep' = {
+  name: 'logic-app-email-deployment'
+  params: {
+    logicAppName: logicAppEmailName
+    location: location
+    state: 'Enabled'
+    definition: {
+      '$schema': 'https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#'
+      contentVersion: '1.0.0.0'
+      triggers: {
+        manual: {
+          type: 'Request'
+          kind: 'Http'
+          inputs: {
+            schema: {
+              type: 'object'
+              properties: {
+                ticketId: { type: 'integer' }
+                ticketTitle: { type: 'string' }
+                priority: { type: 'string' }
+                customerEmail: { type: 'string' }
+                customerName: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+      actions: {
+        // Condition: Is priority HIGH or CRITICAL?
+        CheckPriority: {
+          type: 'If'
+          expression: {
+            or: [
+              { equals: ['@triggerBody()?[\'priority\']', 'HIGH'] }
+              { equals: ['@triggerBody()?[\'priority\']', 'CRITICAL'] }
+            ]
+          }
+          actions: {
+            // TODO: Add Teams notification or other high-priority actions
+            SendHighPriorityNotification: {
+              type: 'Response'
+              inputs: {
+                statusCode: 200
+                body: {
+                  message: 'High priority ticket notification sent'
+                  ticketId: '@triggerBody()?[\'ticketId\']'
+                }
+              }
+            }
+          }
+          else: {
+            actions: {
+              SendNormalNotification: {
+                type: 'Response'
+                inputs: {
+                  statusCode: 200
+                  body: {
+                    message: 'Normal ticket notification processed'
+                    ticketId: '@triggerBody()?[\'ticketId\']'
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      outputs: {}
+    }
     tags: tags
   }
 }
@@ -333,6 +416,15 @@ output natPublicIp string = networking.outputs.natPublicIp
 output containerAppManagedIdentityPrincipalId string = containerAppsEnv.outputs.managedIdentityPrincipalId
 output apimManagedIdentityPrincipalId string = apiManagement.outputs.managedIdentityPrincipalId
 
+// Azure Communication Services
+output acsSenderEmail string = communicationServices.outputs.senderEmail
+output acsEndpoint string = communicationServices.outputs.endpoint
+
+// Logic App
+output logicAppName string = logicAppEmail.outputs.logicAppName
+@secure()
+output logicAppCallbackUrl string = logicAppEmail.outputs.callbackUrl
+
 // WAF
 output wafPolicyId string = frontDoor.outputs.wafPolicyId
 
@@ -341,40 +433,60 @@ output customDomainValidationToken string = frontDoorCustomDomain != '' ? frontD
 
 // Deployment summary message
 output deploymentMessage string = '''
-🎉 Deployment Complete - Production-Ready Architecture!
+Deployment Complete - Production-Ready Architecture with Email Notifications!
 
 FRONTEND ACCESS:
-🌐 Static Web App: https://${staticWebApp.outputs.defaultHostname}
-� Front Door (CDN + WAF): ${frontDoor.outputs.frontDoorEndpointUrl}
-${frontDoorCustomDomain != '' ? '🎯 Custom Domain: https://${frontDoorCustomDomain}' : ''}
+- Static Web App: https://${staticWebApp.outputs.defaultHostname}
+- Front Door (CDN + WAF): ${frontDoor.outputs.frontDoorEndpointUrl}
+${frontDoorCustomDomain != '' ? '- Custom Domain: https://${frontDoorCustomDomain}' : ''}
 
 BACKEND ACCESS:
-🔗 Container App (direct): ${containerAppsEnv.outputs.apiUrl}
-�️  API Management (secured): ${apiManagement.outputs.apiUrl}
-📊 API Docs: ${containerAppsEnv.outputs.apiUrl}/docs
+- Container App (direct): ${containerAppsEnv.outputs.apiUrl}
+- API Management (secured): ${apiManagement.outputs.apiUrl}
+- API Docs: ${containerAppsEnv.outputs.apiUrl}/docs
+
+COMMUNICATION & AUTOMATION:
+- Email Service (ACS): ${communicationServices.outputs.senderEmail}
+- Logic App: ${logicAppEmail.outputs.logicAppName}
+- Logic App Webhook: [Secure URL in outputs]
 
 INFRASTRUCTURE:
-� VNet: ${networking.outputs.vnetName}
-📤 NAT Gateway IP: ${networking.outputs.natPublicIp}
-🗄️  PostgreSQL (private): ${postgresqlPrivate.outputs.serverFqdn}
-� Key Vault: ${keyVault.outputs.keyVaultName}
-�️  WAF Policy: Enabled (OWASP + Bot Protection)
+- VNet: ${networking.outputs.vnetName}
+- NAT Gateway IP: ${networking.outputs.natPublicIp}
+- PostgreSQL (private): ${postgresqlPrivate.outputs.serverFqdn}
+- Key Vault: ${keyVault.outputs.keyVaultName}
+- WAF Policy: Enabled (OWASP + Bot Protection)
 
 ARCHITECTURE FLOW:
-User → Front Door (WAF) → Static Web App (frontend)
-                         → APIM (rate limit + CORS) → Container App → PostgreSQL
+User -> Front Door (WAF) -> Static Web App (frontend)
+                         -> APIM (rate limit + CORS) -> Container App -> PostgreSQL
+                                                            |
+                                                       Email (ACS)
+                                                            |
+                                                       Logic App (workflows)
+
+EMAIL CONFIGURATION:
+- Sender Email: ${communicationServices.outputs.senderEmail}
+- Connection String: Configured in Container App secrets
+- Email templates: Built into backend API
+- Cost: ~$0.00025 per email (very affordable!)
 
 NEXT STEPS:
 1. Deploy backend: docker push ${acr.outputs.acrLoginServer}/api:latest
 2. Frontend auto-deploys via GitHub Actions
-${frontDoorCustomDomain != '' ? '3. Add CNAME record: ${frontDoorCustomDomain} → ${frontDoor.outputs.frontDoorEndpointHostname}\n4. Validation token: ${frontDoor.outputs.customDomainValidationToken}' : ''}
+3. Test email: POST ${containerAppsEnv.outputs.apiUrl}/api/tickets/{id}/respond
+${frontDoorCustomDomain != '' ? '4. Add CNAME record: ${frontDoorCustomDomain} -> ${frontDoor.outputs.frontDoorEndpointHostname}\n5. Validation token: ${frontDoor.outputs.customDomainValidationToken}' : ''}
 
-🔒 Security Features:
-✅ VNet isolation with private endpoints
-✅ NAT Gateway for fixed egress IP
-✅ WAF with OWASP rules + bot protection
-✅ APIM rate limiting (100 req/min)
-✅ Private PostgreSQL (no public access)
-✅ Key Vault with RBAC + managed identities
-✅ HTTPS enforcement everywhere
+SECURITY FEATURES:
+- VNet isolation with private endpoints
+- NAT Gateway for fixed egress IP
+- WAF with OWASP rules + bot protection
+- APIM rate limiting (100 req/min)
+- Private PostgreSQL (no public access)
+- Key Vault with RBAC + managed identities
+- HTTPS enforcement everywhere
+- Email credentials stored as secrets
+- Logic App workflows for automation
+
+Ready to send emails via Azure Communication Services!
 '''

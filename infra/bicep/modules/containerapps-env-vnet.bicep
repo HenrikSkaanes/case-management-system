@@ -40,6 +40,16 @@ param containerRegistryPassword string = ''
 @secure()
 param databaseConnectionString string
 
+@description('Azure Communication Services connection string (optional)')
+@secure()
+param acsConnectionString string = ''
+
+@description('Azure Communication Services sender email (optional)')
+param acsSenderEmail string = ''
+
+@description('Company name for email branding')
+param companyName string = 'Wrangler Tax Services'
+
 @description('Allowed CORS origin')
 param allowedCorsOrigin string = ''
 
@@ -107,6 +117,12 @@ var secrets = concat(
       name: 'registry-password'
       value: containerRegistryPassword
     }
+  ] : [],
+  !empty(acsConnectionString) ? [
+    {
+      name: 'acs-connection-string'
+      value: acsConnectionString
+    }
   ] : []
 )
 
@@ -155,6 +171,18 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'DATABASE_URL'
               secretRef: 'database-url'
+            }
+            {
+              name: 'ACS_CONNECTION_STRING'
+              secretRef: !empty(acsConnectionString) ? 'acs-connection-string' : null
+            }
+            {
+              name: 'ACS_SENDER_EMAIL'
+              value: acsSenderEmail
+            }
+            {
+              name: 'COMPANY_NAME'
+              value: companyName
             }
             {
               name: 'ALLOWED_ORIGIN'
