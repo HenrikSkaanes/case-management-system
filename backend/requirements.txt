@@ -18,7 +18,7 @@ pydantic-settings==2.1.0
 # Python-multipart - For form data and file uploads
 python-multipart==0.0.6
 
-# Azure Communication Services - Email
+# Azure Communication Services - Email notifications
 azure-communication-email==1.0.0
 
 # Testing
