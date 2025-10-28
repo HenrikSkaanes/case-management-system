@@ -22,6 +22,8 @@ app = FastAPI(
     version="2.1.0"  # Added Azure Communication Services
 )
 
+# NOTE: 2025-10-28 Trigger rebuild to ensure azure-communication-email dependency is baked into image
+
 # CORS - Allow Static Web App frontend to call this API
 app.add_middleware(
     CORSMiddleware,
