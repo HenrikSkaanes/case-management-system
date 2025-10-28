@@ -202,10 +202,10 @@ module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
     logAnalyticsCustomerId: logs.outputs.customerId
     subnetAcaControlId: networking.outputs.subnetAcaControlId
     subnetAcaRuntimeId: networking.outputs.subnetAcaRuntimeId
-    containerImage: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder
+    containerImage: '${acr.outputs.acrLoginServer}/api:${imageTag}'
     containerRegistryServer: acr.outputs.acrLoginServer
     containerRegistryUsername: ''
-    containerRegistryPassword: ''
+    containerRegistryPassword: ''  // Using Managed Identity for ACR pull
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1
@@ -217,6 +217,17 @@ module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
     allowedCorsOrigin: allowedCorsOrigin != '' ? allowedCorsOrigin : ''  // Will be set to SWA hostname after deployment
     apimEgressIps: ''  // TODO: Set after APIM is deployed
     tags: tags
+  }
+}
+
+// 6a. Grant Container App Managed Identity permission to pull from ACR
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acrName, apiAppName, 'AcrPull')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
+    principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 
