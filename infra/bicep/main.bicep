@@ -211,7 +211,7 @@ module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
     minReplicas: 1
     maxReplicas: 5
     databaseConnectionString: 'postgresql://caseadmin:${postgresqlAdminPassword}@${postgresqlPrivate.outputs.serverFqdn}:5432/${postgresqlPrivate.outputs.databaseName}?sslmode=require'
-    acsConnectionString: communicationServices.outputs.connectionString
+    acsEndpoint: communicationServices.outputs.endpoint
     acsSenderEmail: communicationServices.outputs.senderEmail
     companyName: 'Wrangler Tax Services'
     allowedCorsOrigin: allowedCorsOrigin != '' ? allowedCorsOrigin : ''  // Will be set to SWA hostname after deployment
@@ -226,6 +226,17 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
+    principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// 6b. Grant Container App Managed Identity permission to send emails via ACS
+resource acsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acsBaseName, apiAppName, 'ACSContributor')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1d8cafef-63be-4d49-87cf-b8f5ae486e41') // Contributor role for ACS
     principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }

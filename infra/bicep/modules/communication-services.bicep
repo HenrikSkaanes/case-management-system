@@ -93,9 +93,9 @@ output communicationServiceName string = communicationService.name
 @description('Sender email address for sending emails')
 output senderEmail string = 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'
 
-@description('Communication Service connection string (sensitive)')
+@description('Communication Service connection string (sensitive) - DEPRECATED: Use managed identity instead')
 @secure()
 output connectionString string = communicationService.listKeys().primaryConnectionString
 
-@description('Communication Service endpoint')
-output endpoint string = communicationService.properties.hostName
+@description('Communication Service endpoint URL for managed identity authentication')
+output endpoint string = 'https://${communicationService.properties.hostName}'

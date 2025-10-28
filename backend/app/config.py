@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tickets.db")
     
-    # Azure Communication Services
-    ACS_CONNECTION_STRING: Optional[str] = os.getenv("ACS_CONNECTION_STRING")
+    # Azure Communication Services - Using Managed Identity
+    ACS_ENDPOINT: Optional[str] = os.getenv("ACS_ENDPOINT")
     ACS_SENDER_EMAIL: Optional[str] = os.getenv("ACS_SENDER_EMAIL")
     
     # Company branding

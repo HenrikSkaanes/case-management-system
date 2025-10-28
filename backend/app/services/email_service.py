@@ -2,9 +2,11 @@
 Email service using Azure Communication Services.
 
 Handles sending customer response emails and tracking delivery.
+Uses Managed Identity for authentication (no connection strings).
 """
 
 from azure.communication.email import EmailClient
+from azure.identity import DefaultAzureCredential
 from datetime import datetime
 from typing import Optional
 import logging
@@ -19,12 +21,19 @@ class EmailService:
     """Service for sending emails via Azure Communication Services"""
     
     def __init__(self):
-        """Initialize email client with ACS connection string"""
-        if not settings.ACS_CONNECTION_STRING:
-            logger.warning("ACS_CONNECTION_STRING not configured - email sending disabled")
+        """Initialize email client with Managed Identity authentication"""
+        if not settings.ACS_ENDPOINT:
+            logger.warning("ACS_ENDPOINT not configured - email sending disabled")
             self.client = None
         else:
-            self.client = EmailClient.from_connection_string(settings.ACS_CONNECTION_STRING)
+            try:
+                # Use DefaultAzureCredential for Managed Identity authentication
+                credential = DefaultAzureCredential()
+                self.client = EmailClient(settings.ACS_ENDPOINT, credential)
+                logger.info("Email client initialized with Managed Identity")
+            except Exception as e:
+                logger.error(f"Failed to initialize email client: {str(e)}")
+                self.client = None
         
         self.sender_email = settings.ACS_SENDER_EMAIL
         self.company_name = settings.COMPANY_NAME

@@ -40,9 +40,8 @@ param containerRegistryPassword string = ''
 @secure()
 param databaseConnectionString string
 
-@description('Azure Communication Services connection string (optional)')
-@secure()
-param acsConnectionString string = ''
+@description('Azure Communication Services endpoint (for managed identity auth)')
+param acsEndpoint string = ''
 
 @description('Azure Communication Services sender email (optional)')
 param acsSenderEmail string = ''
@@ -108,7 +107,7 @@ var registryConfig = !empty(containerRegistryServer) ? (!empty(containerRegistry
   }
 ]) : []
 
-// Build secrets array
+// Build secrets array - only include secrets that are actually used
 var secrets = concat(
   [
     {
@@ -121,13 +120,8 @@ var secrets = concat(
       name: 'registry-password'
       value: containerRegistryPassword
     }
-  ] : [],
-  !empty(acsConnectionString) ? [
-    {
-      name: 'acs-connection-string'
-      value: acsConnectionString
-    }
   ] : []
+  // Note: ACS no longer uses connection string - using Managed Identity instead
 )
 
 // Build IP restrictions if APIM IPs provided
@@ -177,8 +171,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               secretRef: 'database-url'
             }
             {
-              name: 'ACS_CONNECTION_STRING'
-              secretRef: !empty(acsConnectionString) ? 'acs-connection-string' : null
+              name: 'ACS_ENDPOINT'
+              value: acsEndpoint
             }
             {
               name: 'ACS_SENDER_EMAIL'
