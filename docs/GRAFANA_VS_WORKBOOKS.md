@@ -414,7 +414,9 @@ resource grafanaContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
 ```
 
 ### 2️⃣ Azure Workbook (30 minutes)
-See `docs/WORKBOOK_GUIDE.md` - already created!
+### For Free Workbooks:
+
+See `docs/WORKBOOK_SETUP.md` - already created!
 
 ### 3️⃣ Azure Managed Grafana (1 hour)
 ```powershell
@@ -483,7 +485,7 @@ Ask yourself:
 **Start with Azure Workbooks** because:
 1. ✅ FREE
 2. ✅ Powerful KQL queries for troubleshooting
-3. ✅ Already have the guide (WORKBOOK_GUIDE.md)
+3. ✅ Already have the guide (WORKBOOK_SETUP.md)
 4. ✅ Can investigate FastAPI issues effectively
 5. ✅ Good enough for getting started
 

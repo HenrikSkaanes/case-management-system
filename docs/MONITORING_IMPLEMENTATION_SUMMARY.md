@@ -19,7 +19,8 @@ Your Case Management System now has **enterprise-grade monitoring** based on Azu
 3. **📝 Documentation**
    - [MONITORING_GUIDE.md](./MONITORING_GUIDE.md) - Complete monitoring guide
    - [QUICK_START_MONITORING.md](./QUICK_START_MONITORING.md) - 5-minute setup guide
-   - [WORKBOOK_GUIDE.md](./WORKBOOK_GUIDE.md) - Dashboard creation guide
+   - [WORKBOOK_SETUP.md](./WORKBOOK_SETUP.md) - Advanced workbook creation guide
+   - [DASHBOARD_QUICK_SETUP.md](./DASHBOARD_QUICK_SETUP.md) - Quick dashboard setup
 
 ## 🎯 Why AMBA?
 

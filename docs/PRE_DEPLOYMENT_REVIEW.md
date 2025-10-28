@@ -224,7 +224,7 @@ Before running the workflow, complete these steps:
 **How to Add**:
 1. Go to Azure Portal → Monitor → Workbooks
 2. Click "New" → "Advanced Editor"
-3. Paste JSON template (in `docs/WORKBOOK_GUIDE.md`)
+3. Paste JSON template (in `docs/WORKBOOK_SETUP.md`)
 4. Save and share with team
 
 **Out of the Box Experience**:
@@ -302,7 +302,7 @@ az deployment group create \
 # Create Workbook in Portal (manual)
 # - No code changes needed
 # - Takes 15 minutes
-# - Follow docs/WORKBOOK_GUIDE.md
+# - Follow docs/WORKBOOK_SETUP.md
 ```
 
 **Phase 3: Grafana (Optional - Month 2+)**
