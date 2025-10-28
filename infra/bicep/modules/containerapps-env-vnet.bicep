@@ -104,6 +104,7 @@ var registryConfig = !empty(containerRegistryServer) ? (!empty(containerRegistry
 ] : [
   {
     server: containerRegistryServer
+    identity: 'system'
   }
 ]) : []
 
