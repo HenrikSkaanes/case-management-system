@@ -5,7 +5,6 @@ Handles sending customer response emails and tracking delivery.
 """
 
 from azure.communication.email import EmailClient
-from azure.communication.email.models import EmailContent, EmailAddress, EmailMessage, EmailRecipients
 from datetime import datetime
 from typing import Optional
 import logging
@@ -87,18 +86,23 @@ class EmailService:
                 sent_by=sent_by
             )
             
-            # Create email message
-            message = EmailMessage(
-                sender=self.sender_email,
-                content=EmailContent(
-                    subject=subject,
-                    plain_text=text_body,
-                    html=html_body
-                ),
-                recipients=EmailRecipients(
-                    to=[EmailAddress(email=customer_email, display_name=customer_name)]
-                )
-            )
+            # Create email message using dict structure (compatible with azure-communication-email SDK)
+            message = {
+                "senderAddress": self.sender_email,
+                "content": {
+                    "subject": subject,
+                    "plainText": text_body,
+                    "html": html_body
+                },
+                "recipients": {
+                    "to": [
+                        {
+                            "address": customer_email,
+                            "displayName": customer_name
+                        }
+                    ]
+                }
+            }
             
             # Send email via ACS
             logger.info(f"Sending email to {customer_email} for ticket #{ticket_id}")

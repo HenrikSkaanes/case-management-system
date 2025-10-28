@@ -95,14 +95,18 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// Build registry configuration if credentials provided
-var registryConfig = !empty(containerRegistryServer) && !empty(containerRegistryUsername) ? [
+// Build registry configuration - support both credential and managed identity auth
+var registryConfig = !empty(containerRegistryServer) ? (!empty(containerRegistryUsername) ? [
   {
     server: containerRegistryServer
     username: containerRegistryUsername
     passwordSecretRef: 'registry-password'
   }
-] : []
+] : [
+  {
+    server: containerRegistryServer
+  }
+]) : []
 
 // Build secrets array
 var secrets = concat(
