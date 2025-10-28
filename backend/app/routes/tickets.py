@@ -12,10 +12,14 @@ This file contains all the endpoints for managing tickets:
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import logging
 
 from ..database import get_db
 from ..models import Ticket, TicketStatus
 from ..schemas import TicketCreate, TicketUpdate, TicketResponse
+from ..services.email_service import get_email_service
+
+logger = logging.getLogger(__name__)
 
 # Create router - this groups related endpoints
 router = APIRouter()
@@ -64,7 +68,7 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TicketResponse, status_code=201)
-def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
+async def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
     """
     Create a new ticket.
     
@@ -79,6 +83,7 @@ def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
     - And other optional fields for assignment, analytics, etc.
     
     Returns the created ticket with ID and timestamps.
+    Sends confirmation email to customer.
     """
     # Create new Ticket instance with all fields from schema
     ticket_dict = ticket_data.model_dump(exclude_unset=True)
@@ -92,6 +97,25 @@ def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)  # Get the auto-generated ID
+    
+    # Send confirmation email to customer
+    try:
+        email_service = get_email_service()
+        if email_service.is_configured():
+            await email_service.send_ticket_confirmation(
+                ticket_id=new_ticket.id,
+                ticket_title=new_ticket.title,
+                customer_email=new_ticket.customer_email,
+                customer_name=new_ticket.customer_name,
+                ticket_description=new_ticket.description or "No description provided",
+                ticket_category=new_ticket.category
+            )
+            logger.info(f"Confirmation email sent for ticket #{new_ticket.id}")
+        else:
+            logger.warning("Email service not configured - confirmation email not sent")
+    except Exception as e:
+        # Don't fail ticket creation if email fails
+        logger.error(f"Failed to send confirmation email for ticket #{new_ticket.id}: {str(e)}")
     
     return new_ticket
 
