@@ -12,13 +12,10 @@ This file contains all the endpoints for managing tickets:
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import logging
 
 from ..database import get_db
 from ..models import Ticket, TicketStatus
 from ..schemas import TicketCreate, TicketUpdate, TicketResponse
-
-logger = logging.getLogger(__name__)
 
 # Create router - this groups related endpoints
 router = APIRouter()
@@ -95,9 +92,6 @@ def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)  # Get the auto-generated ID
-    
-    # TODO: Add confirmation email in background task
-    # Currently disabled due to runtime issues
     
     return new_ticket
 
