@@ -9,7 +9,7 @@ This file contains all the endpoints for managing tickets:
 - DELETE /tickets/{id} - Delete ticket
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import logging
@@ -68,7 +68,7 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TicketResponse, status_code=201)
-async def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)):
+def create_ticket(ticket_data: TicketCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Create a new ticket.
     
@@ -83,7 +83,7 @@ async def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)
     - And other optional fields for assignment, analytics, etc.
     
     Returns the created ticket with ID and timestamps.
-    Sends confirmation email to customer.
+    Sends confirmation email to customer in background.
     """
     # Create new Ticket instance with all fields from schema
     ticket_dict = ticket_data.model_dump(exclude_unset=True)
@@ -98,24 +98,27 @@ async def create_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_ticket)  # Get the auto-generated ID
     
-    # Send confirmation email to customer
-    try:
-        email_service = get_email_service()
-        if email_service.is_configured():
-            await email_service.send_ticket_confirmation(
-                ticket_id=new_ticket.id,
-                ticket_title=new_ticket.title,
-                customer_email=new_ticket.customer_email,
-                customer_name=new_ticket.customer_name,
-                ticket_description=new_ticket.description or "No description provided",
-                ticket_category=new_ticket.category
-            )
-            logger.info(f"Confirmation email sent for ticket #{new_ticket.id}")
-        else:
-            logger.warning("Email service not configured - confirmation email not sent")
-    except Exception as e:
-        # Don't fail ticket creation if email fails
-        logger.error(f"Failed to send confirmation email for ticket #{new_ticket.id}: {str(e)}")
+    # Send confirmation email in background (non-blocking)
+    def send_confirmation():
+        try:
+            email_service = get_email_service()
+            if email_service.is_configured():
+                import asyncio
+                asyncio.run(email_service.send_ticket_confirmation(
+                    ticket_id=new_ticket.id,
+                    ticket_title=new_ticket.title,
+                    customer_email=new_ticket.customer_email,
+                    customer_name=new_ticket.customer_name,
+                    ticket_description=new_ticket.description or "No description provided",
+                    ticket_category=new_ticket.category
+                ))
+                logger.info(f"Confirmation email sent for ticket #{new_ticket.id}")
+            else:
+                logger.warning("Email service not configured - confirmation email not sent")
+        except Exception as e:
+            logger.error(f"Failed to send confirmation email for ticket #{new_ticket.id}: {str(e)}")
+    
+    background_tasks.add_task(send_confirmation)
     
     return new_ticket
 
