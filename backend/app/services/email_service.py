@@ -145,6 +145,95 @@ class EmailService:
             logger.error(f"Failed to send email: {str(e)}", exc_info=True)
             return (EmailStatus.FAILED, None, str(e))
     
+    async def send_ticket_confirmation(
+        self,
+        ticket_id: int,
+        ticket_title: str,
+        ticket_description: str,
+        customer_email: str,
+        customer_name: str,
+        category: str,
+        priority: str
+    ) -> tuple[EmailStatus, Optional[str], Optional[str]]:
+        """
+        Send confirmation email to customer when ticket is created.
+        
+        Args:
+            ticket_id: ID of the newly created ticket
+            ticket_title: Title of the ticket
+            ticket_description: Description/details of the ticket
+            customer_email: Customer's email address
+            customer_name: Customer's name
+            category: Ticket category
+            priority: Ticket priority
+        
+        Returns:
+            Tuple of (status, message_id, error_message)
+        """
+        
+        if not self.is_configured():
+            logger.warning("Email service not configured - skipping confirmation email")
+            return (EmailStatus.FAILED, None, "Email service not configured")
+        
+        try:
+            # Build email subject
+            subject = f"{self.company_name} - Case #{ticket_id} Received"
+            
+            # Build HTML email body for confirmation
+            html_body = self._build_confirmation_html(
+                customer_name=customer_name,
+                ticket_id=ticket_id,
+                ticket_title=ticket_title,
+                ticket_description=ticket_description,
+                category=category,
+                priority=priority
+            )
+            
+            # Build plain text version
+            text_body = self._build_confirmation_text(
+                customer_name=customer_name,
+                ticket_id=ticket_id,
+                ticket_title=ticket_title,
+                ticket_description=ticket_description,
+                category=category,
+                priority=priority
+            )
+            
+            # Create email message
+            message = {
+                "senderAddress": self.sender_email,
+                "content": {
+                    "subject": subject,
+                    "plainText": text_body,
+                    "html": html_body
+                },
+                "recipients": {
+                    "to": [
+                        {
+                            "address": customer_email,
+                            "displayName": customer_name
+                        }
+                    ]
+                }
+            }
+            
+            # Send email via ACS
+            logger.info(f"Sending confirmation email to {customer_email} for ticket #{ticket_id}")
+            poller = self.client.begin_send(message)
+            result = poller.result()
+            
+            # Check if email was accepted
+            if result and hasattr(result, 'message_id'):
+                logger.info(f"Confirmation email sent successfully. Message ID: {result.message_id}")
+                return (EmailStatus.SENT, result.message_id, None)
+            else:
+                logger.error("Confirmation email send failed - no message ID returned")
+                return (EmailStatus.FAILED, None, "No message ID returned from ACS")
+        
+        except Exception as e:
+            logger.error(f"Failed to send confirmation email: {str(e)}", exc_info=True)
+            return (EmailStatus.FAILED, None, str(e))
+    
     def _build_email_html(
         self,
         customer_name: str,
@@ -232,6 +321,128 @@ If you have any questions or need further assistance, please don't hesitate to r
 
 ---
 This is an automated message from {self.company_name}
+Please do not reply to this email
+"""
+    
+    def _build_confirmation_html(
+        self,
+        customer_name: str,
+        ticket_id: int,
+        ticket_title: str,
+        ticket_description: str,
+        category: str,
+        priority: str
+    ) -> str:
+        """Build professional HTML confirmation email template"""
+        
+        priority_color = {
+            'low': '#10b981',
+            'medium': '#f59e0b',
+            'high': '#ef4444',
+            'critical': '#dc2626'
+        }.get(priority.lower(), '#667eea')
+        
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">{self.company_name}</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Case Confirmation</p>
+    </div>
+    
+    <!-- Body -->
+    <div style="background: #ffffff; padding: 30px; border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">
+        <p style="font-size: 16px; margin-bottom: 20px;">Hello {customer_name},</p>
+        
+        <p style="font-size: 16px; margin-bottom: 20px;">Thank you for contacting us. We have received your case and our team will review it shortly.</p>
+        
+        <!-- Case Details Box -->
+        <div style="background: #f5f5f5; border-left: 4px solid {priority_color}; padding: 20px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0 0 12px 0; font-weight: 600; color: #666; font-size: 14px;">CASE #{ticket_id}</p>
+            <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #333;">{ticket_title}</h2>
+            
+            <div style="display: table; width: 100%; margin-top: 15px;">
+                <div style="display: table-row;">
+                    <div style="display: table-cell; padding: 8px 0; font-size: 14px; color: #666;">Category:</div>
+                    <div style="display: table-cell; padding: 8px 0; font-size: 14px; color: #333; font-weight: 600;">{category}</div>
+                </div>
+                <div style="display: table-row;">
+                    <div style="display: table-cell; padding: 8px 0; font-size: 14px; color: #666;">Priority:</div>
+                    <div style="display: table-cell; padding: 8px 0;">
+                        <span style="display: inline-block; padding: 4px 12px; background: {priority_color}; color: white; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">{priority}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Description -->
+        {f'<div style="background: #ffffff; border: 1px solid #e0e0e0; padding: 20px; margin: 20px 0; border-radius: 4px;"><p style="font-weight: 600; margin: 0 0 12px 0; color: #667eea; font-size: 14px; text-transform: uppercase;">Your Message:</p><div style="white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: #333;">{ticket_description}</div></div>' if ticket_description else ''}
+        
+        <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0; font-size: 14px; color: #0c4a6e;">
+                <strong>What happens next?</strong><br>
+                Our team will review your case and get back to you as soon as possible. You will receive an email notification when there's an update.
+            </p>
+        </div>
+        
+        <p style="font-size: 16px; margin-top: 25px;">If you have any urgent questions, please don't hesitate to contact us.</p>
+        
+        <p style="font-size: 15px; margin-top: 25px;">Best regards,<br><strong>{self.company_name} Team</strong></p>
+    </div>
+    
+    <!-- Footer -->
+    <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border: 1px solid #e0e0e0; border-top: none;">
+        <p style="font-size: 13px; color: #666; margin: 0;">This is an automated confirmation from {self.company_name}</p>
+        <p style="font-size: 13px; color: #666; margin: 8px 0 0 0;">Please do not reply to this email</p>
+    </div>
+    
+</body>
+</html>
+"""
+    
+    def _build_confirmation_text(
+        self,
+        customer_name: str,
+        ticket_id: int,
+        ticket_title: str,
+        ticket_description: str,
+        category: str,
+        priority: str
+    ) -> str:
+        """Build plain text confirmation email version (fallback)"""
+        
+        description_section = f"\n\nYour Message:\n{ticket_description}\n" if ticket_description else ""
+        
+        return f"""
+{self.company_name} - Case Confirmation
+
+Hello {customer_name},
+
+Thank you for contacting us. We have received your case and our team will review it shortly.
+
+CASE #{ticket_id}: {ticket_title}
+
+Category: {category}
+Priority: {priority.upper()}
+{description_section}
+
+What happens next?
+Our team will review your case and get back to you as soon as possible. You will receive an email notification when there's an update.
+
+If you have any urgent questions, please don't hesitate to contact us.
+
+Best regards,
+{self.company_name} Team
+
+---
+This is an automated confirmation from {self.company_name}
 Please do not reply to this email
 """
 
