@@ -133,12 +133,14 @@ class EmailService:
             poller = self.client.begin_send(message)
             result = poller.result()
             
-            # Check if email was accepted
-            if result and hasattr(result, 'message_id'):
-                logger.info(f"Email sent successfully. Message ID: {result.message_id}")
-                return (EmailStatus.SENT, result.message_id, None)
+            # Get message ID from the result
+            message_id = result.get('messageId') if isinstance(result, dict) else getattr(result, 'message_id', None)
+            
+            if message_id:
+                logger.info(f"Email sent successfully. Message ID: {message_id}")
+                return (EmailStatus.SENT, message_id, None)
             else:
-                logger.error("Email send failed - no message ID returned")
+                logger.error(f"Email send failed - no message ID returned. Result type: {type(result)}, Result: {result}")
                 return (EmailStatus.FAILED, None, "No message ID returned from ACS")
         
         except Exception as e:
@@ -222,12 +224,14 @@ class EmailService:
             poller = self.client.begin_send(message)
             result = poller.result()
             
-            # Check if email was accepted
-            if result and hasattr(result, 'message_id'):
-                logger.info(f"Confirmation email sent successfully. Message ID: {result.message_id}")
-                return (EmailStatus.SENT, result.message_id, None)
+            # Get message ID from the result
+            message_id = result.get('messageId') if isinstance(result, dict) else getattr(result, 'message_id', None)
+            
+            if message_id:
+                logger.info(f"Confirmation email sent successfully. Message ID: {message_id}")
+                return (EmailStatus.SENT, message_id, None)
             else:
-                logger.error("Confirmation email send failed - no message ID returned")
+                logger.error(f"Confirmation email send failed - no message ID returned. Result type: {type(result)}, Result: {result}")
                 return (EmailStatus.FAILED, None, "No message ID returned from ACS")
         
         except Exception as e:
