@@ -2,10 +2,11 @@
 Email service using Azure Communication Services.
 
 Handles sending customer response emails and tracking delivery.
-Uses connection string for authentication.
+Uses Managed Identity for authentication.
 """
 
 from azure.communication.email import EmailClient
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 from datetime import datetime
 from typing import Optional
 import logging
@@ -20,24 +21,40 @@ class EmailService:
     """Service for sending emails via Azure Communication Services"""
     
     def __init__(self):
-        """Initialize email client with connection string"""
-        if not settings.ACS_CONNECTION_STRING:
-            logger.warning("ACS_CONNECTION_STRING not configured - email sending disabled")
-            self.client = None
-        else:
-            try:
-                # Use connection string for authentication
-                self.client = EmailClient.from_connection_string(settings.ACS_CONNECTION_STRING)
-                logger.info("Email client initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize email client: {str(e)}")
-                self.client = None
-        
+        """Initialize email client with Managed Identity - deferred to avoid startup delays"""
+        self.client = None
+        self._initialized = False
         self.sender_email = settings.ACS_SENDER_EMAIL
         self.company_name = settings.COMPANY_NAME
+        
+        # Don't initialize client during startup to avoid blocking
+        # Client will be initialized on first use
+        logger.info("Email service created (client will be initialized on first use)")
+    
+    def _ensure_client(self):
+        """Lazy initialization of email client to avoid blocking startup"""
+        if self._initialized:
+            return
+        
+        self._initialized = True
+        
+        if not settings.ACS_ENDPOINT:
+            logger.warning("ACS_ENDPOINT not configured - email sending disabled")
+            self.client = None
+            return
+        
+        try:
+            # Use ManagedIdentityCredential with short timeout to avoid hanging
+            credential = ManagedIdentityCredential(connection_timeout=5)
+            self.client = EmailClient(settings.ACS_ENDPOINT, credential)
+            logger.info("Email client initialized with Managed Identity")
+        except Exception as e:
+            logger.error(f"Failed to initialize email client: {str(e)}")
+            self.client = None
     
     def is_configured(self) -> bool:
         """Check if email service is properly configured"""
+        self._ensure_client()  # Initialize client on first use
         return self.client is not None and self.sender_email is not None
     
     async def send_ticket_response(
