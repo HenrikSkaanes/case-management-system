@@ -22,6 +22,16 @@ param subnetPostgresPrefix string = '10.10.4.0/24'
 @description('Tags to apply to resources')
 param tags object = {}
 
+// Network Security Group for Container Apps subnets
+module nsg './nsg-containerapps.bicep' = {
+  name: '${vnetName}-nsg-deployment'
+  params: {
+    nsgName: '${vnetName}-aca-nsg'
+    location: location
+    tags: tags
+  }
+}
+
 // Public IP for NAT Gateway (for fixed egress IP)
 resource natPublicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
   name: '${vnetName}-nat-pip'
@@ -73,8 +83,10 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           delegations: []
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Enabled'
-          // Do NOT attach NSG - Container Apps manages its own security
-          // networkSecurityGroup: null  // Explicitly prevent NSG attachment
+          // Attach our NSG with proper rules
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
         }
       }
       {
@@ -84,8 +96,10 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           delegations: []
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Enabled'
-          // Do NOT attach NSG - Container Apps manages its own security
-          // networkSecurityGroup: null  // Explicitly prevent NSG attachment
+          // Attach our NSG with proper rules
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
           natGateway: {
             id: natGateway.id
           }
