@@ -237,7 +237,7 @@ resource acsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2
   name: guid(acsBaseName, apiAppName, 'ACSContributor')
   scope: resourceGroup()
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1d8cafef-63be-4d49-87cf-b8f5ae486e41') // Contributor role for ACS
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350') // Communication and Email Service Owner
     principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
@@ -402,7 +402,7 @@ module postgresqlAadConfig 'modules/postgres-aad-admin.bicep' = if (enablePostgr
 resource acsRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, containerAppsEnv.name, communicationServices.name, 'acs-contributor')
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c') // Contributor
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350') // Communication and Email Service Owner
     principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
