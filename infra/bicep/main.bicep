@@ -66,15 +66,16 @@ param subnetPostgresPrefix string = '10.10.4.0/24'
 ])
 param apimSkuName string = 'Consumption'
 
-@description('Azure Front Door SKU (Standard or Premium)')
-@allowed([
-  'Standard_AzureFrontDoor'
-  'Premium_AzureFrontDoor'
-])
-param frontDoorSkuName string = 'Standard_AzureFrontDoor'
+// Front Door parameters - temporarily disabled
+// @description('Azure Front Door SKU (Standard or Premium)')
+// @allowed([
+//   'Standard_AzureFrontDoor'
+//   'Premium_AzureFrontDoor'
+// ])
+// param frontDoorSkuName string = 'Standard_AzureFrontDoor'
 
-@description('Optional custom domain for Azure Front Door (e.g., app.example.com)')
-param frontDoorCustomDomain string = ''
+// @description('Optional custom domain for Azure Front Door (e.g., app.example.com)')
+// param frontDoorCustomDomain string = ''
 
 // ============================================
 // VARIABLES
@@ -345,6 +346,9 @@ module apiManagement 'modules/apim.bicep' = {
 }
 
 // 9. Azure Front Door with WAF (global CDN + security) - After SWA + APIM
+// TEMPORARILY DISABLED: Azure Front Door service has platform-level restrictions
+// TODO: Re-enable when Azure lifts Front Door configuration block
+/*
 module frontDoor 'modules/frontdoor-waf.bicep' = {
   name: 'frontdoor-deployment'
   params: {
@@ -361,6 +365,7 @@ module frontDoor 'modules/frontdoor-waf.bicep' = {
     apiManagement
   ]
 }
+*/
 
 // 10. Update Key Vault with Container App managed identity (separate deployment)
 // Note: This is a second deployment of Key Vault to grant the Container App access
@@ -409,8 +414,9 @@ resource acsRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' 
 
 // Frontend URLs
 output frontendUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
-output frontDoorUrl string = frontDoor.outputs.frontDoorEndpointUrl
-output customDomainUrl string = frontDoorCustomDomain != '' ? 'https://${frontDoorCustomDomain}' : ''
+// Front Door temporarily disabled due to Azure service restrictions
+// output frontDoorUrl string = frontDoor.outputs.frontDoorEndpointUrl
+// output customDomainUrl string = frontDoorCustomDomain != '' ? 'https://${frontDoorCustomDomain}' : ''
 
 // Backend URLs
 output apiUrl string = containerAppsEnv.outputs.apiUrl
@@ -457,11 +463,11 @@ output logicAppName string = logicAppEmail.outputs.logicAppName
 @secure()
 output logicAppCallbackUrl string = logicAppEmail.outputs.callbackUrl
 
-// WAF
-output wafPolicyId string = frontDoor.outputs.wafPolicyId
+// WAF (Front Door disabled)
+// output wafPolicyId string = frontDoor.outputs.wafPolicyId
 
-// Custom Domain Validation (if applicable)
-output customDomainValidationToken string = frontDoorCustomDomain != '' ? frontDoor.outputs.customDomainValidationToken : ''
+// Custom Domain Validation (Front Door disabled)
+// output customDomainValidationToken string = frontDoorCustomDomain != '' ? frontDoor.outputs.customDomainValidationToken : ''
 
 // Deployment summary message
 output deploymentMessage string = '''
@@ -469,8 +475,7 @@ Deployment Complete - Production-Ready Architecture with Email Notifications!
 
 FRONTEND ACCESS:
 - Static Web App: https://${staticWebApp.outputs.defaultHostname}
-- Front Door (CDN + WAF): ${frontDoor.outputs.frontDoorEndpointUrl}
-${frontDoorCustomDomain != '' ? '- Custom Domain: https://${frontDoorCustomDomain}' : ''}
+(Front Door temporarily disabled due to Azure service restrictions)
 
 BACKEND ACCESS:
 - Container App (direct): ${containerAppsEnv.outputs.apiUrl}
