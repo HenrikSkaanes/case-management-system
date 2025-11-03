@@ -10,20 +10,22 @@
 
 ### **Phase 1: UI/UX Overhaul** 🎨
 
-#### 1.1 Update Ticket Status Model ⬜
+#### 1.1 Update Ticket Status Model ✅
 **File**: `backend/app/models.py`
-- [ ] Add new ticket statuses:
+- [x] Add new ticket statuses:
   - `AI_DRAFT` - Ticket drafted by AI agent
   - `IN_REVIEW` - Employee reviewing AI draft  
   - `AWAITING_CUSTOMER` - Waiting for customer response
   - `RESOLVED` - Issue resolved, awaiting closure
   - `CLOSED` - Ticket closed
-- [ ] Add AI-related fields to Ticket model:
+- [x] Add AI-related fields to Ticket model:
   - `ai_generated: bool` - Flag for AI-drafted tickets
   - `ai_draft_content: str` - Original AI-generated content
   - `ai_sources: JSON` - List of source citations
   - `ai_confidence_score: float` - Agent confidence (0-1)
-- [ ] Create database migration
+  - `ai_model_version: str` - Model version used
+  - `ai_generated_at: DateTime` - When draft was created
+- [x] Create database migration
 
 #### 1.2 Update Kanban Board Component ⬜
 **File**: `frontend/src/components/Dashboard.jsx`
@@ -401,10 +403,10 @@
 
 ## 📊 Progress Tracking
 
-**Overall Progress**: 0/73 tasks completed (0%)
+**Overall Progress**: 1/73 tasks completed (1.4%)
 
 ### Phase Completion:
-- **Phase 1 (UI/UX)**: 0/8 ⬜
+- **Phase 1 (UI/UX)**: 1/8 ✅⬜⬜⬜⬜⬜⬜⬜
 - **Phase 2 (Knowledge Base)**: 0/3 ⬜
 - **Phase 3 (Azure AI Infra)**: 0/4 ⬜
 - **Phase 4 (AI Search Index)**: 0/3 ⬜
@@ -419,7 +421,8 @@
 ## 🎯 Current Focus
 
 **Active Phase**: Phase 1 - UI/UX Overhaul  
-**Current Task**: 1.1 - Update Ticket Status Model
+**Current Task**: 1.2 - Update Kanban Board Component  
+**Last Completed**: 1.1 - Update Ticket Status Model ✅
 
 ---
 

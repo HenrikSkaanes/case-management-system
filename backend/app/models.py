@@ -5,7 +5,7 @@ Enhanced Ticket model with comprehensive fields for analytics and case managemen
 Includes TicketResponse model for tracking email communications.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -15,13 +15,17 @@ from .database import Base
 
 
 class TicketStatus(str, enum.Enum):
-    """Ticket lifecycle status"""
-    NEW = "new"
-    IN_PROGRESS = "in_progress"
-    PENDING_CUSTOMER = "pending_customer"  # Waiting for customer response
-    RESOLVED = "resolved"  # Fixed, awaiting closure
-    CLOSED = "closed"  # Fully closed
-    DONE = "done"  # Legacy compatibility
+    """Ticket lifecycle status - Enhanced with AI agent stages"""
+    NEW = "new"  # Just created, not yet processed
+    AI_DRAFT = "ai_draft"  # AI agent has generated a draft response
+    IN_REVIEW = "in_review"  # Employee is reviewing AI draft
+    IN_PROGRESS = "in_progress"  # Actively being worked on
+    AWAITING_CUSTOMER = "awaiting_customer"  # Waiting for customer response
+    RESOLVED = "resolved"  # Issue resolved, awaiting final closure
+    CLOSED = "closed"  # Ticket fully closed
+    # Legacy statuses (keep for backward compatibility)
+    PENDING_CUSTOMER = "pending_customer"  # Alias for AWAITING_CUSTOMER
+    DONE = "done"  # Alias for CLOSED
 
 
 class TicketPriority(str, enum.Enum):
@@ -92,6 +96,14 @@ class Ticket(Base):
     reopened_count = Column(Integer, default=0)  # How many times reopened
     escalated = Column(Boolean, default=False)  # Escalated to supervisor
     notes = Column(Text, nullable=True)  # Internal notes
+    
+    # AI Agent Fields
+    ai_generated = Column(Boolean, default=False, nullable=False)  # Flag for AI-drafted tickets
+    ai_draft_content = Column(Text, nullable=True)  # Original AI-generated response draft
+    ai_sources = Column(JSON, nullable=True)  # List of source citations from knowledge base
+    ai_confidence_score = Column(Float, nullable=True)  # Agent confidence score (0.0-1.0)
+    ai_model_version = Column(String, nullable=True)  # Which model/version generated the draft
+    ai_generated_at = Column(DateTime(timezone=True), nullable=True)  # When AI draft was created
 
     # Relationship to responses
     responses = relationship("TicketResponse", back_populates="ticket", cascade="all, delete-orphan")
