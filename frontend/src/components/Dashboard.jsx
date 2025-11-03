@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import KanbanColumn from './KanbanColumn'
 import TicketModal from './TicketModal'
 import PowerBIEmbed from './PowerBIEmbed'
+import PipelineProgress from './PipelineProgress'
+import ActivityFeed from './ActivityFeed'
 import { fetchTickets, createTicket, updateTicket, deleteTicket, sendResponse } from '../services/api'
 import './Dashboard.css'
 
@@ -325,23 +327,33 @@ function Dashboard() {
       </header>
 
       {activeTab === 'kanban' ? (
-        <main className="kanban-board">
-          {TICKET_STAGES.map(stage => (
-            <KanbanColumn
-              key={stage.key}
-              status={stage.key}
-              title={stage.title}
-              icon={stage.icon}
-              color={stage.color}
-              gradient={stage.gradient}
-              tickets={ticketsByStatus[stage.key] || []}
-              onUpdateTicket={handleUpdateTicket}
-              onEditTicket={handleEditTicket}
-              onDeleteTicket={handleDeleteTicket}
-              onRespond={handleRespond}
-            />
-          ))}
-        </main>
+        <>
+          <PipelineProgress tickets={filteredTickets} stages={TICKET_STAGES} />
+          
+          <div className="dashboard-content">
+            <main className="kanban-board">
+              {TICKET_STAGES.map(stage => (
+                <KanbanColumn
+                  key={stage.key}
+                  status={stage.key}
+                  title={stage.title}
+                  icon={stage.icon}
+                  color={stage.color}
+                  gradient={stage.gradient}
+                  tickets={ticketsByStatus[stage.key] || []}
+                  onUpdateTicket={handleUpdateTicket}
+                  onEditTicket={handleEditTicket}
+                  onDeleteTicket={handleDeleteTicket}
+                  onRespond={handleRespond}
+                />
+              ))}
+            </main>
+            
+            <aside className="activity-sidebar">
+              <ActivityFeed tickets={tickets} />
+            </aside>
+          </div>
+        </>
       ) : (
         <main className="metrics-view">
           <div className="powerbi-section">

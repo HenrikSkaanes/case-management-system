@@ -201,15 +201,30 @@
   font-weight: 600;
 }
 
-/* Kanban Board - supports 7 columns with horizontal scrolling */
+/* Dashboard content layout with sidebar */
+.dashboard-content {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  padding: 0 32px 32px 32px;
+  overflow: hidden;
+}
+
+.activity-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+/* Kanban Board - supports 5 columns with horizontal scrolling */
 .kanban-board {
   flex: 1;
-  padding: 32px;
   display: flex;
   gap: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
   align-items: flex-start;
   min-width: min-content;
+  padding-bottom: 8px;
 }
 
 .kanban-board::-webkit-scrollbar {
@@ -228,6 +243,28 @@
 
 .kanban-board::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+  .activity-sidebar {
+    width: 280px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dashboard-content {
+    flex-direction: column;
+  }
+  
+  .activity-sidebar {
+    width: 100%;
+    max-width: none;
+  }
+  
+  .kanban-board {
+    padding-bottom: 16px;
+  }
 }
 
 /* Loading State */

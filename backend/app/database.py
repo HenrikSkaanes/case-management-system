@@ -19,15 +19,28 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
 
 # Create database engine
 # For SQLite, we need check_same_thread=False
-# For PostgreSQL, we don't need any special connect_args
+# For PostgreSQL, we configure connection pooling and retry logic
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         connect_args={"check_same_thread": False}
     )
 else:
-    # PostgreSQL doesn't need special connect_args
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    # PostgreSQL with connection pooling and resilience settings
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,  # Verify connections before using them
+        pool_size=5,  # Number of connections to maintain
+        max_overflow=10,  # Additional connections when pool is full
+        pool_recycle=3600,  # Recycle connections after 1 hour
+        connect_args={
+            "connect_timeout": 10,  # 10 second connection timeout
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5
+        }
+    )
 
 # SessionLocal: each instance is a database session
 # We'll use this to interact with the database
