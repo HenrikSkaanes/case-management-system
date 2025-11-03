@@ -37,12 +37,6 @@
     },
     "apimSkuName": {
       "value": "Consumption"
-    },
-    "frontDoorSkuName": {
-      "value": "Standard_AzureFrontDoor"
-    },
-    "frontDoorCustomDomain": {
-      "value": ""
     }
   }
 }

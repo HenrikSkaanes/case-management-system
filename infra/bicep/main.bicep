@@ -237,7 +237,7 @@ resource acsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2
   name: guid(acsBaseName, apiAppName, 'ACSContributor')
   scope: resourceGroup()
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c') // Contributor role
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1d8cafef-63be-4d49-87cf-b8f5ae486e41') // Contributor role for ACS
     principalId: containerAppsEnv.outputs.managedIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
