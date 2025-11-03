@@ -223,7 +223,7 @@ module containerAppsEnv 'modules/containerapps-env-vnet.bicep' = {
 
 // 6a. Grant Container App Managed Identity permission to pull from ACR
 resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(acrName, apiAppName, 'AcrPull')
+  name: guid(resourceGroup().id, acrName, apiAppName, 'AcrPull')
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
@@ -234,7 +234,7 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
 
 // 6b. Grant Container App Managed Identity permission to send emails via ACS
 resource acsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(acsBaseName, apiAppName, 'ACSContributor')
+  name: guid(resourceGroup().id, acsBaseName, apiAppName, 'ACSContributor')
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350') // Communication and Email Service Owner
