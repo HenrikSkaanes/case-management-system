@@ -110,15 +110,48 @@ function Dashboard() {
     }
   }
 
-  // Define the 7 Kanban stages with metadata
+  // Define the 5 optimized Kanban stages with metadata
   const TICKET_STAGES = [
-    { key: 'new', title: 'New', icon: '📥', color: '#3b82f6', statuses: ['new'] },
-    { key: 'ai_draft', title: 'AI Draft', icon: '🤖', color: '#8b5cf6', statuses: ['ai_draft'] },
-    { key: 'in_review', title: 'In Review', icon: '👀', color: '#f59e0b', statuses: ['in_review'] },
-    { key: 'in_progress', title: 'In Progress', icon: '⚙️', color: '#10b981', statuses: ['in_progress'] },
-    { key: 'awaiting_customer', title: 'Awaiting Customer', icon: '⏳', color: '#ef4444', statuses: ['awaiting_customer', 'pending_customer'] },
-    { key: 'resolved', title: 'Resolved', icon: '✅', color: '#06b6d4', statuses: ['resolved'] },
-    { key: 'closed', title: 'Closed', icon: '🔒', color: '#64748b', statuses: ['closed', 'done'] },
+    { 
+      key: 'new', 
+      title: 'New', 
+      icon: '📥', 
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: '#667eea',
+      statuses: ['new'] 
+    },
+    { 
+      key: 'ai_processing', 
+      title: 'AI Processing', 
+      icon: '🤖', 
+      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      color: '#f093fb',
+      statuses: ['ai_draft', 'in_review'] 
+    },
+    { 
+      key: 'in_progress', 
+      title: 'In Progress', 
+      icon: '⚙️', 
+      gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      color: '#4facfe',
+      statuses: ['in_progress'] 
+    },
+    { 
+      key: 'awaiting', 
+      title: 'Awaiting Response', 
+      icon: '⏳', 
+      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      color: '#fa709a',
+      statuses: ['awaiting_customer', 'pending_customer'] 
+    },
+    { 
+      key: 'resolved', 
+      title: 'Resolved', 
+      icon: '✅', 
+      gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+      color: '#30cfd0',
+      statuses: ['resolved', 'closed', 'done'] 
+    },
   ]
 
   const filteredTickets = tickets.filter(ticket => {
@@ -272,13 +305,17 @@ function Dashboard() {
             <span className="stat-value">{ticketsByStatus.new?.length || 0}</span>
             <span className="stat-label">New</span>
           </div>
-          <div className="stat">
-            <span className="stat-value">{ticketsByStatus.ai_draft?.length || 0}</span>
-            <span className="stat-label">AI Draft</span>
+          <div className="stat stat-ai">
+            <span className="stat-value">{ticketsByStatus.ai_processing?.length || 0}</span>
+            <span className="stat-label">🤖 AI Processing</span>
           </div>
           <div className="stat">
             <span className="stat-value">{ticketsByStatus.in_progress?.length || 0}</span>
             <span className="stat-label">In Progress</span>
+          </div>
+          <div className="stat">
+            <span className="stat-value">{ticketsByStatus.awaiting?.length || 0}</span>
+            <span className="stat-label">Awaiting</span>
           </div>
           <div className="stat">
             <span className="stat-value">{ticketsByStatus.resolved?.length || 0}</span>
@@ -296,6 +333,7 @@ function Dashboard() {
               title={stage.title}
               icon={stage.icon}
               color={stage.color}
+              gradient={stage.gradient}
               tickets={ticketsByStatus[stage.key] || []}
               onUpdateTicket={handleUpdateTicket}
               onEditTicket={handleEditTicket}

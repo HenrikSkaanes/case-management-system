@@ -7,9 +7,9 @@ import './KanbanColumn.css';
  * 
  * Displays tickets for a specific status
  * Handles drop events to update ticket status
- * Supports dynamic styling based on stage color
+ * Supports dynamic styling with gradients
  */
-const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, onRespond, icon, color }) => {
+const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, onRespond, icon, color, gradient }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = (e) => {
@@ -28,14 +28,13 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
     const ticketId = e.dataTransfer.getData('ticketId');
     if (ticketId) {
       // Map the column status to the actual ticket status
+      // For consolidated columns, use the first status in the list
       const statusMap = {
         'new': 'new',
-        'ai_draft': 'ai_draft',
-        'in_review': 'in_review',
+        'ai_processing': 'ai_draft', // Default to ai_draft for AI Processing column
         'in_progress': 'in_progress',
-        'awaiting_customer': 'awaiting_customer',
-        'resolved': 'resolved',
-        'closed': 'closed'
+        'awaiting': 'awaiting_customer',
+        'resolved': 'resolved'
       };
       await onUpdateTicket(parseInt(ticketId), { status: statusMap[status] || status });
     }
@@ -45,18 +44,14 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
     switch (status) {
       case 'new':
         return 'status-new';
-      case 'ai_draft':
-        return 'status-ai-draft';
-      case 'in_review':
-        return 'status-in-review';
+      case 'ai_processing':
+        return 'status-ai-processing';
       case 'in_progress':
         return 'status-progress';
-      case 'awaiting_customer':
+      case 'awaiting':
         return 'status-awaiting';
       case 'resolved':
         return 'status-resolved';
-      case 'closed':
-        return 'status-closed';
       default:
         return '';
     }
@@ -68,9 +63,12 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      style={{ '--column-color': color }}
+      style={{ 
+        '--column-color': color,
+        '--column-gradient': gradient
+      }}
     >
-      <div className="column-header">
+      <div className="column-header" style={{ background: gradient }}>
         <div className="column-title">
           <span className="column-icon">{icon}</span>
           <h2>{title}</h2>

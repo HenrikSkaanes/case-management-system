@@ -164,6 +164,27 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.stat:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.stat-ai {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  padding: 10px 18px;
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+}
+
+.stat-ai .stat-value,
+.stat-ai .stat-label {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .stat-value {
