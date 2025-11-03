@@ -5,10 +5,11 @@ import './KanbanColumn.css';
 /**
  * KanbanColumn - A single column in the Kanban board
  * 
- * Displays tickets for a specific status (new, in_progress, done)
+ * Displays tickets for a specific status
  * Handles drop events to update ticket status
+ * Supports dynamic styling based on stage color
  */
-const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, onRespond, icon }) => {
+const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, onDeleteTicket, onRespond, icon, color }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = (e) => {
@@ -26,7 +27,17 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
 
     const ticketId = e.dataTransfer.getData('ticketId');
     if (ticketId) {
-      await onUpdateTicket(parseInt(ticketId), { status });
+      // Map the column status to the actual ticket status
+      const statusMap = {
+        'new': 'new',
+        'ai_draft': 'ai_draft',
+        'in_review': 'in_review',
+        'in_progress': 'in_progress',
+        'awaiting_customer': 'awaiting_customer',
+        'resolved': 'resolved',
+        'closed': 'closed'
+      };
+      await onUpdateTicket(parseInt(ticketId), { status: statusMap[status] || status });
     }
   };
 
@@ -34,11 +45,18 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
     switch (status) {
       case 'new':
         return 'status-new';
+      case 'ai_draft':
+        return 'status-ai-draft';
+      case 'in_review':
+        return 'status-in-review';
       case 'in_progress':
         return 'status-progress';
+      case 'awaiting_customer':
+        return 'status-awaiting';
       case 'resolved':
-      case 'done':
-        return 'status-done';
+        return 'status-resolved';
+      case 'closed':
+        return 'status-closed';
       default:
         return '';
     }
@@ -50,6 +68,7 @@ const KanbanColumn = ({ status, title, tickets, onUpdateTicket, onEditTicket, on
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      style={{ '--column-color': color }}
     >
       <div className="column-header">
         <div className="column-title">

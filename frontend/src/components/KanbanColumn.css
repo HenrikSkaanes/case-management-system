@@ -91,15 +91,49 @@
   color: #bbb;
 }
 
-/* Status-specific colors */
+/* Status-specific colors - using CSS variables for dynamic theming */
+.kanban-column {
+  --column-color: #666;
+}
+
 .status-new .column-header {
-  border-bottom-color: #1976d2;
+  border-bottom-color: #3b82f6;
+}
+
+.status-ai-draft .column-header {
+  border-bottom-color: #8b5cf6;
+}
+
+.status-ai-draft .column-count {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  color: white;
+}
+
+.status-in-review .column-header {
+  border-bottom-color: #f59e0b;
 }
 
 .status-progress .column-header {
-  border-bottom-color: #f57c00;
+  border-bottom-color: #10b981;
 }
 
-.status-done .column-header {
-  border-bottom-color: #388e3c;
+.status-awaiting .column-header {
+  border-bottom-color: #ef4444;
+}
+
+.status-awaiting .column-count {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.status-resolved .column-header {
+  border-bottom-color: #06b6d4;
+}
+
+.status-closed .column-header {
+  border-bottom-color: #64748b;
+}
+
+.status-closed {
+  opacity: 0.85;
 }

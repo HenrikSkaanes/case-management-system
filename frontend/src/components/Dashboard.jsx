@@ -30,7 +30,9 @@ function Dashboard() {
     try {
       setLoading(true)
       setError(null)
+      console.log('📡 Fetching tickets from API...');
       const data = await fetchTickets()
+      console.log(`✅ Loaded ${data.length} tickets`);
       setTickets(data)
     } catch (err) {
       setError('Failed to load tickets. Make sure the backend is running.')
@@ -108,6 +110,17 @@ function Dashboard() {
     }
   }
 
+  // Define the 7 Kanban stages with metadata
+  const TICKET_STAGES = [
+    { key: 'new', title: 'New', icon: '📥', color: '#3b82f6', statuses: ['new'] },
+    { key: 'ai_draft', title: 'AI Draft', icon: '🤖', color: '#8b5cf6', statuses: ['ai_draft'] },
+    { key: 'in_review', title: 'In Review', icon: '👀', color: '#f59e0b', statuses: ['in_review'] },
+    { key: 'in_progress', title: 'In Progress', icon: '⚙️', color: '#10b981', statuses: ['in_progress'] },
+    { key: 'awaiting_customer', title: 'Awaiting Customer', icon: '⏳', color: '#ef4444', statuses: ['awaiting_customer', 'pending_customer'] },
+    { key: 'resolved', title: 'Resolved', icon: '✅', color: '#06b6d4', statuses: ['resolved'] },
+    { key: 'closed', title: 'Closed', icon: '🔒', color: '#64748b', statuses: ['closed', 'done'] },
+  ]
+
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ticket.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -116,11 +129,11 @@ function Dashboard() {
     return matchesSearch && matchesCategory && matchesPriority
   })
 
-  const ticketsByStatus = {
-    new: filteredTickets.filter(t => t.status === 'new'),
-    in_progress: filteredTickets.filter(t => t.status === 'in_progress'),
-    resolved: filteredTickets.filter(t => t.status === 'resolved' || t.status === 'closed'),
-  }
+  // Group tickets by their stage (supports multiple status values per stage)
+  const ticketsByStatus = TICKET_STAGES.reduce((acc, stage) => {
+    acc[stage.key] = filteredTickets.filter(t => stage.statuses.includes(t.status))
+    return acc
+  }, {})
 
   const categories = [...new Set(tickets.map(t => t.category))].filter(Boolean).sort()
   
@@ -256,15 +269,19 @@ function Dashboard() {
             <span className="stat-label">Total Tickets</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{ticketsByStatus.new.length}</span>
+            <span className="stat-value">{ticketsByStatus.new?.length || 0}</span>
             <span className="stat-label">New</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{ticketsByStatus.in_progress.length}</span>
+            <span className="stat-value">{ticketsByStatus.ai_draft?.length || 0}</span>
+            <span className="stat-label">AI Draft</span>
+          </div>
+          <div className="stat">
+            <span className="stat-value">{ticketsByStatus.in_progress?.length || 0}</span>
             <span className="stat-label">In Progress</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{ticketsByStatus.resolved.length}</span>
+            <span className="stat-value">{ticketsByStatus.resolved?.length || 0}</span>
             <span className="stat-label">Resolved</span>
           </div>
         </div>
@@ -272,36 +289,20 @@ function Dashboard() {
 
       {activeTab === 'kanban' ? (
         <main className="kanban-board">
-          <KanbanColumn
-            status="new"
-            title="New"
-            icon="📥"
-            tickets={ticketsByStatus.new}
-            onUpdateTicket={handleUpdateTicket}
-            onEditTicket={handleEditTicket}
-            onDeleteTicket={handleDeleteTicket}
-            onRespond={handleRespond}
-          />
-          <KanbanColumn
-            status="in_progress"
-            title="In Progress"
-            icon="⚙️"
-            tickets={ticketsByStatus.in_progress}
-            onUpdateTicket={handleUpdateTicket}
-            onEditTicket={handleEditTicket}
-            onDeleteTicket={handleDeleteTicket}
-            onRespond={handleRespond}
-          />
-          <KanbanColumn
-            status="resolved"
-            title="Resolved"
-            icon="✅"
-            tickets={ticketsByStatus.resolved}
-            onUpdateTicket={handleUpdateTicket}
-            onEditTicket={handleEditTicket}
-            onDeleteTicket={handleDeleteTicket}
-            onRespond={handleRespond}
-          />
+          {TICKET_STAGES.map(stage => (
+            <KanbanColumn
+              key={stage.key}
+              status={stage.key}
+              title={stage.title}
+              icon={stage.icon}
+              color={stage.color}
+              tickets={ticketsByStatus[stage.key] || []}
+              onUpdateTicket={handleUpdateTicket}
+              onEditTicket={handleEditTicket}
+              onDeleteTicket={handleDeleteTicket}
+              onRespond={handleRespond}
+            />
+          ))}
         </main>
       ) : (
         <main className="metrics-view">
