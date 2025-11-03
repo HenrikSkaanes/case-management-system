@@ -1,5 +1,6 @@
 // Main Bicep file - Separated Frontend (Static Web App) + Backend (Container App)
 // Deploys: ACR → Logs → Environment → Backend API → Frontend
+// Role assignments cleaned up for fresh deployment
 
 targetScope = 'resourceGroup'
 
