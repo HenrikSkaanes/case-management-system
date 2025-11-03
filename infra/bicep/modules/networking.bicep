@@ -133,3 +133,5 @@ output subnetAcaRuntimeId string = '${vnet.id}/subnets/aca-runtime'
 output subnetPostgresId string = '${vnet.id}/subnets/postgres-delegated'
 output natPublicIp string = natPublicIp.properties.ipAddress
 output natGatewayId string = natGateway.id
+output nsgId string = nsg.outputs.nsgId
+output nsgName string = nsg.outputs.nsgName

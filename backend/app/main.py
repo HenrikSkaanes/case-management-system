@@ -12,6 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import engine, Base
 from .routes import tickets, email
+from .run_migrations import run_migrations
+
+# Run database migrations first
+print("🔄 Running database migrations...")
+run_migrations()
+print("✅ Migrations complete")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
