@@ -73,6 +73,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           delegations: []
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Enabled'
+          // Do NOT attach NSG - Container Apps manages its own security
+          // networkSecurityGroup: null  // Explicitly prevent NSG attachment
         }
       }
       {
@@ -82,6 +84,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           delegations: []
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Enabled'
+          // Do NOT attach NSG - Container Apps manages its own security
+          // networkSecurityGroup: null  // Explicitly prevent NSG attachment
           natGateway: {
             id: natGateway.id
           }
