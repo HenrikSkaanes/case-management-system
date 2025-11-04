@@ -53,6 +53,9 @@ param dnsZoneResourceGroupName string = ''
 @description('Tags to apply to resources')
 param tags object = {}
 
+@description('Prevent auto-shutdown by cost management automation')
+param preventAutoShutdown bool = true
+
 // Use provided RG or fallback to current deployment RG
 var dnsResourceGroup = empty(dnsZoneResourceGroupName) ? resourceGroup().name : dnsZoneResourceGroupName
 
@@ -80,7 +83,11 @@ resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLin
 resource postgresqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
   name: serverName
   location: location
-  tags: tags
+  tags: union(tags, preventAutoShutdown ? {
+    AutoStop: 'Disabled'
+    DoNotAutoShutdown: 'true'
+    CostManagement: 'ExcludeFromAutomation'
+  } : {})
   sku: {
     name: skuName
     tier: skuTier
